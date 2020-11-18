@@ -36,11 +36,11 @@ If the predictor works well, the residual signal has only low amplitude and can 
 The improvements to the bit rate by the predictor are lossless.
 
 Available predictors are:
+
 0) [Zero](predictor_zero.m) predicts always zero
 1) [Simple](predictor_simple.m) predicts the last value
 2) [Linear extrapolation](predictor_linear.m) Extrapolates linearly using the last 2 samples
-3) [Linear predictive coding](predictor_lpc.m) Uses LPC with (max) three coefficients on the (max) last 32 samples to predict the next sample
- analysis filter width, and inserts and entry-point every 10ms.
+3) [Linear predictive coding](predictor_lpc.m) Uses LPC with (max) three coefficients on the (max) last 32 samples to predict the next sample analysis filter width, and inserts and entry-point every 10ms.
 
 
 ### QUALITY
@@ -83,17 +83,7 @@ Once prepared, the following commands encode and decode the channels of these fi
 The resulting average/minimum/maximum bitrates in kbit/s across files and channel are:
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
-|------- :|------:|----:|----:|----:|
+|--------:|------:|----:|----:|----:|
 |       0 |     1 | 249 | 184 | 323 |
-|       0 |     2 |
-|       0 |     4 | 
-|       0 |     8 | 
-|      -2 |     1 |
-|      -2 |     2 |
-|      -2 |     4 |
-|      -2 |     8 |
-|      -4 |     1 |
-|      -4 |     2 |
-|      -4 |     4 |
-|      -4 |     8 |
+
 
