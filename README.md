@@ -21,7 +21,9 @@ Run ./run_benchmark.sh <folder with wav files sampled at 32kHz> <PREDICTOR> <QUA
 Defaults:
  
 PREDICTOR = 3
+
 QUALITY = 0
+
 ENTRY = 10
 
 
