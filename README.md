@@ -66,7 +66,7 @@ This variable does not add a delay to the encoded bit-stream, but low values, e.
 ## Performance (in terms of achievable bit rates)
 A small parameter space exploration for different values for QUALITY and ENTRY.
 Read the corresponding [README.md](set_opus_comparison/README.md) on how to achieve the required audio samples.
-Once prepared, the following commands encode and decode the channels of these files with different parameters and generate basic statistics on their bitrates.
+Once prepared, the following commands encode and decode the channels of these files with different parameters and generate basic statistics on their bit rates.
 
     for QUALITY in 0 -2 -4; do
       for ENTRY in 1 2 4 8; do
@@ -80,10 +80,20 @@ Once prepared, the following commands encode and decode the channels of these fi
       done
     done
 
-The resulting average/minimum/maximum bitrates in kbit/s across files and channel are:
+Encoding each sample with 16 bit, the required bit rate would be (16*32000 =) 512 kbit/s.
+The achieved average/minimum/maximum bit rates in kbit/s (per channel) across files are as follows:
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
 |--------:|------:|----:|----:|----:|
 |       0 |     1 | 249 | 184 | 323 |
 
+(to be completed once the experiments finish)
+
+If you run the benchmark script, you can find the decoded samples in corresponding set_opus_comparison/32k_32bit_2c_ZDA-* folders and judge the quality for yourself.
+
+
+## Preliminary conclusion
+The approach could approximately half the required bandwidth for ultra-low-latency audio applications.
+
+The saved bandwidth could be used for redundancy, i.e. sending each packet twice.
 
