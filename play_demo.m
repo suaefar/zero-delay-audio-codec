@@ -16,7 +16,7 @@ entry = 10; % period of entry points in ms
 % Generate a stimulus: Vary frequency and level over time
 level = [0 -20]; % dB
 period = [1/2000 1/2]; % 16Hz to 16000kHz
-signal = (10.^(linspace(level(1),level(2),fs)./20).*sin(2.*pi*cumsum(linspace(period(1),period(2),fs)))).';
+signal = (10.^(linspace(level(1),level(2),fs./8)./20).*sin(2.*pi*cumsum(linspace(period(1),period(2),fs./8)))).';
 
 %% Bad bad noise
 %signal = 2.*(rand(fs/4,1)-0.5);
@@ -49,21 +49,25 @@ figure('Position',[0 0 1600 800]);
 subplot(2,2,1);
 plot(controlcodes);
 ylim([-1 4]);
+grid on;
 title('Controlcode: 0 significant, 1 entry, 2 exponent, 3 codebook, 4 stop');
 subplot(2,2,2);
 bar([0 1 2 3 4],log10(histc(controlcodes,[0 1 2 3 4])));
 yticks(log10(2.^(0:1:15)));
 yticklabels(2.^(0:1:15));
 xticklabels({'significant','entry','exponent','codebook','stop'});
+grid on;
 title('Controlcode: Absolute frequency')
 subplot(2,2,3);
 plot(bits);
 ylim([-1 33]);
+grid on;
 title('Controlcode bits')
 subplot(2,2,4);
 bar(log10(histc(bits,[0:32])));
 yticks(log10(2.^(0:1:15)));
 yticklabels(2.^(0:1:15));
+grid on;
 title('Controlcode bits: Absolute frequency');
 drawnow;
 
