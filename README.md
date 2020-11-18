@@ -88,7 +88,7 @@ The achieved average/minimum/maximum bit rates in kbit/s (per channel) across fi
 |       0 |     1 | 249 | 184 | 323 |
 |       0 |     2 | 222 | 161 | 290 |
 |       0 |     4 | 205 | 148 | 267 |
-|       0 |     4 | 196 | 141 | 253 |
+|       0 |     8 | 196 | 141 | 253 |
 
 (to be completed once the experiments finish)
 
