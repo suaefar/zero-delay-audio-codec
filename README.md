@@ -1,4 +1,4 @@
-![Image](images/header.png)
+![Image](images/bitmap.png)
 # A free zero-delay audio codec (zdac)
 Compress and encode audio data with no reference to future samples, using:
 1) (linear) predictive coding,
