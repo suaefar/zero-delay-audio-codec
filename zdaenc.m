@@ -1,7 +1,7 @@
 # This file is part of the ZDAC reference implementation
 # Author (2020) Marc René Schädler (suaefar@googlemail.com)
 
-function [message debug_controlcodes debug_bits debug_amplitude_tracker debug_quantnoise_tracker debug_exponent debug_spectral_energy] = zdaenc(signal, fs, predictor, quality, entry)
+function [message debug_controlcodes debug_bits debug_amplitude_tracker debug_quantnoise_tracker debug_exponent debug_spectral_energy debug_message] = zdaenc(signal, fs, predictor, quality, entry)
 
 if nargin() < 3
   predictor = 3;
@@ -127,8 +127,9 @@ spectral_energy = zeros(num_bands,1);
 quantnoise_model_levels = log2(sqrt(mean(abs(quantnoise_model_analysis).^2))).';
 
 % Debug variables
-debug_controlcodes = zeros(1,2.*num_samples); % Buffer for bits
-debug_bits = zeros(1,2.*num_samples); % Buffer for bits
+debug_controlcodes = zeros(1,2.*num_samples);
+debug_bits = zeros(1,2.*num_samples);
+debug_message_buffer = zeros(size(message_buffer));
 debug_controlcodes_pointer = 0;
 debug_amplitude_tracker = zeros(1,num_samples);
 debug_quantnoise_tracker = zeros(1,num_samples);
@@ -177,6 +178,8 @@ for i=1:num_samples
     
     % Insert the compiled bits into the message
     message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = insert_bits;
+    debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)+2.*controlcode_id_entry;
+    
     message_pointer = message_pointer + numel(insert_bits);
     debug_controlcodes(debug_controlcodes_pointer+1) = controlcode_id_entry;
     debug_bits(debug_controlcodes_pointer+1) = numel(insert_bits);
@@ -240,6 +243,7 @@ for i=1:num_samples
       
       % Insert the compiled bits into the message
       message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = insert_bits;
+      debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)+2.*controlcode_id_exponent;
       message_pointer = message_pointer + numel(insert_bits);
       debug_controlcodes(debug_controlcodes_pointer+1) = controlcode_id_exponent;
       debug_bits(debug_controlcodes_pointer+1) = numel(insert_bits);
@@ -269,6 +273,7 @@ for i=1:num_samples
 
       % Insert the compiled bits into the message
       message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = insert_bits;
+      debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)+2.*controlcode_id_codebook;
       message_pointer = message_pointer + numel(insert_bits);
       debug_controlcodes(debug_controlcodes_pointer+1) = controlcode_id_codebook;
       debug_bits(debug_controlcodes_pointer+1) = numel(insert_bits);
@@ -290,6 +295,7 @@ for i=1:num_samples
    
     % Insert the compiled bits into the message
     message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = insert_bits;
+    debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)-2.*mod(i,2);
     message_pointer = message_pointer + numel(insert_bits);
     debug_controlcodes(debug_controlcodes_pointer+1) = 0;
     debug_bits(debug_controlcodes_pointer+1) = numel(insert_bits);
@@ -313,6 +319,7 @@ debug_bits(debug_controlcodes_pointer+1) = numel(insert_bits);
 debug_controlcodes_pointer = debug_controlcodes_pointer + 1;
 
 message = message_buffer(1:message_pointer);
+debug_message = debug_message_buffer(1:message_pointer);
 
 debug_controlcodes = debug_controlcodes(1:debug_controlcodes_pointer);
 debug_bits = debug_bits(1:debug_controlcodes_pointer);

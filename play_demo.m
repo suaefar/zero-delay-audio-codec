@@ -16,10 +16,10 @@ entry = 10; % period of entry points in ms
 % Generate a stimulus: Vary frequency and level over time
 level = [0 -20]; % dB
 period = [1/2000 1/2]; % 16Hz to 16000kHz
-signal = (10.^(linspace(level(1),level(2),fs./8)./20).*sin(2.*pi*cumsum(linspace(period(1),period(2),fs./8)))).';
+signal = (10.^(linspace(level(1),level(2),fs/8)./20).*sin(2.*pi*cumsum(linspace(period(1),period(2),fs/8)))).';
 
 %% Bad bad noise
-%signal = 2.*(rand(fs/4,1)-0.5);
+% signal = 2.*(rand(fs/8,1)-0.5);
 
 audiowrite('orginal.wav',signal,fs,'BitsPerSample',32);
 
@@ -32,7 +32,7 @@ bits_per_second_ref = 16.*fs
 
 % Zero-delay audio codec (ZDAC)
 %% ENCODER
-[message controlcodes bits amplitude_tracker quantnoise_tracker exponent spectral_energy] = zdaenc(signal, fs, predictor, quality, entry);
+[message controlcodes bits amplitude_tracker quantnoise_tracker exponent spectral_energy debug_message] = zdaenc(signal, fs, predictor, quality, entry);
 
 num_samples = size(signal,1);
 num_bits = numel(message);
@@ -70,6 +70,31 @@ yticklabels(2.^(0:1:15));
 grid on;
 title('Controlcode bits: Absolute frequency');
 drawnow;
+
+
+linecolors = lines(7);
+zerodimfactor = 0.8;
+colors= [
+  linecolors(3,:).*zerodimfactor;
+  linecolors(3,:);
+  linecolors(3,:).*zerodimfactor;
+  linecolors(3,:);
+  linecolors(7,:).*zerodimfactor;
+  linecolors(7,:);
+  linecolors(1,:).*zerodimfactor;
+  linecolors(1,:);
+  linecolors(4,:).*zerodimfactor;
+  linecolors(4,:);
+  [0.5 0.5 0.5]
+];
+
+figure('Position',[0 0 1600 800]);
+debug_message_padded = [debug_message,11.*ones(1,numel(signal)*16-numel(debug_message))];
+image(reshape(debug_message_padded,128,[])+3); axis image;
+colormap(colors);
+title('Coloured bitmap: yellow - significant, red - entry, blue - exponent, purple - codebook'); 
+drawnow;
+
 
 %% DECODER
 signal_reconst = zdadec(message, fs, predictor);
