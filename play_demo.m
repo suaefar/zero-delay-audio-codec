@@ -21,6 +21,9 @@ signal = (10.^(linspace(level(1),level(2),fs/8)./20).*sin(2.*pi*cumsum(linspace(
 %% Bad bad noise
 % signal = 2.*(rand(fs/8,1)-0.5);
 
+% Only use blocks of 32 samples for later alignment in bitmap
+signal = signal(1:floor(numel(signal)/32).*32);
+
 audiowrite('orginal.wav',signal,fs,'BitsPerSample',32);
 
 % Reference: Quantization with 16 bits
@@ -71,14 +74,13 @@ grid on;
 title('Controlcode bits: Absolute frequency');
 drawnow;
 
-
 linecolors = lines(7);
-zerodimfactor = 0.8;
+zerodimfactor = 0.9;
 colors= [
   linecolors(3,:).*zerodimfactor;
   linecolors(3,:);
-  linecolors(3,:).*zerodimfactor;
-  linecolors(3,:);
+  (linecolors(3,:)+[0 0.15 0]).*zerodimfactor;
+  (linecolors(3,:)+[0 0.15 0]);
   linecolors(7,:).*zerodimfactor;
   linecolors(7,:);
   linecolors(1,:).*zerodimfactor;
@@ -90,9 +92,14 @@ colors= [
 
 figure('Position',[0 0 1600 800]);
 debug_message_padded = [debug_message,11.*ones(1,numel(signal)*16-numel(debug_message))];
-image(reshape(debug_message_padded,128,[])+3); axis image;
+bitmap = reshape(debug_message_padded,128,[])+3;
+image(bitmap); axis image;
 colormap(colors);
-title('Coloured bitmap: yellow - significant, red - entry, blue - exponent, purple - codebook'); 
+grid on
+xticks(0:50:size(bitmap,2));
+yticks(0:16:size(bitmap,1));
+ylabel('bit number');
+title('Coloured bitmap: yellow/orange - significant, red - entry, blue - exponent, purple - codebook'); 
 drawnow;
 
 
