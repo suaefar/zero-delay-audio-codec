@@ -89,14 +89,23 @@ The achieved average/minimum/maximum bit rates in kbit/s (per channel) across fi
 |       0 |     2 | 222 | 161 | 290 |
 |       0 |     4 | 205 | 148 | 267 |
 |       0 |     8 | 196 | 141 | 253 |
+|       0 |    16 | 191 | 137 | 245 |
+
+| QUALITY | ENTRY | AVG | MIN | MAX |
+|--------:|------:|----:|----:|----:|
 |      -2 |     1 | 230 | 176 | 285 |
 |      -2 |     2 | 203 | 153 | 251 |
 |      -2 |     4 | 186 | 140 | 231 |
 |      -2 |     8 | 176 | 132 | 221 |
+|      -2 |    16 | 171 | 129 | 216 |
+
+| QUALITY | ENTRY | AVG | MIN | MAX |
+|--------:|------:|----:|----:|----:|
 |      -4 |     1 | 189 | 163 | 214 |
 |      -4 |     2 | 162 | 140 | 192 |
 |      -4 |     4 | 145 | 127 | 178 |
 |      -4 |     8 | 136 | 119 | 170 |
+|      -4 |    16 | 131 | 115 | 167 |
 
 More detailed statistics can be found the [reference results](results_reference.txt).
 An example of how to read the data:
