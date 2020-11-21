@@ -12,7 +12,7 @@ function [bits_per_second, bits_per_sample, num_bits, num_samples, SNR, DEV] = c
     %writebinary([filename_out '.zda'], message);
     %printf('Read zda binary\n');
     %message = readbinary([filename_out '.zda']);
-    printf('Decode num_channels\n');
+    printf('Decode channel\n');
     signal_reconst(:,i) = zdadec(message, fs, predictor);
 
     num_samples = numel(signal(:,i));

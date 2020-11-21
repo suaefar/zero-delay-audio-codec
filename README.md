@@ -27,6 +27,11 @@ This script encodes and decodes a signal and shows the state of some internal va
 
 Run `./run_benchmark.sh <folder-with-wav-files-sampled-at-32kHz> <PREDICTOR> <QUALITY> <ENTRY>` to encode and decode the audio files in the folder and get some encoding statistics where considered default values are as follows: PREDICTOR = 3, QUALITY = 0, ENTRY = 10.
 
+To compare ZDA to OPUS at compareable bit rates you can run `./run_opus_comparison.sh <WAVFILE> <OPUS_BITRATE> <ZDA_PREDICTOR> <ZDA_QUALITY> <ZDA_ENTRY>`.
+The script encodes and decodes the WAVFILE and produces a figure comparing the respective differences to the input signal in the time domain and in the log Mel-spectrogram domain.
+After the first run with OPUS_BITRATE=512, add the bitrates of the (possibly two) channels encoded with ZDA and set OPUS_BITRATE to this value.
+The figures are saved in png-files for each channel separately.
+
 
 ### PREDICTOR
 The predictor predicts the next sample values based on past sample values.
@@ -40,7 +45,7 @@ Available predictors are:
 0) [Zero](predictor_zero.m) predicts always zero
 1) [Simple](predictor_simple.m) predicts the last value
 2) [Linear extrapolation](predictor_linear.m) Extrapolates linearly using the last 2 samples
-3) [Linear predictive coding](predictor_lpc.m) Uses LPC with (max) three coefficients on the (max) last 32 samples to predict the next sample analysis filter width, and inserts and entry-point every 10ms.
+3) [Linear predictive coding](predictor_lpc.m) Uses LPC with (max) three coefficients on the (max) last 32 samples to predict the next sample
 
 
 ### QUALITY
