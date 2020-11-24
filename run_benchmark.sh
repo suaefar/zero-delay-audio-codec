@@ -12,7 +12,7 @@ NPROC="$5"
 
 FILELIST="$(mktemp)"
 
-(cd "${FOLDER}" && find . -iname '*.wav' -type f) > "${FILELIST}"
+(cd "${FOLDER}" && find . -iname '*.wav' -type f) | sort -R > "${FILELIST}"
 
 for ((I=0;$I<${NPROC};I++)); do
   octave --eval "

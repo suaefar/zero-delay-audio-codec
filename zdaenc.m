@@ -68,7 +68,7 @@ if ~exist(codebook_cache_file)
   codebooks = cell(numel(codebook_alphabet),1);
   for i=1:numel(codebook_alphabet)
     residue_alphabet_prob = normpdf(-residue_factor:residue_factor,0,2.^-double(codebook_alphabet(i)).*double(residue_factor));
-    residue_alphabet_freq = max(1,fs.*residue_alphabet_prob./sum(residue_alphabet_prob));
+    residue_alphabet_freq = max(0.05,fs.*residue_alphabet_prob./sum(residue_alphabet_prob));
     huffman_tree = huffman(residue_alphabet_freq,int32(-residue_factor:residue_factor));
     [huffman_symbols, huffman_codes] = gencodebook(huffman_tree);
     huffman_symbols = [huffman_symbols{:}];
@@ -109,7 +109,7 @@ quantnoise_hold_counter = 0;
 amplitude_tracker = 0;
 amplitude_hold_counter = 0;
 residual_energy = 0.1;
-residual_update = 0.04;
+residual_update = 0.1;
 spectral_update = 0.1;
 
 % Load default codebook
