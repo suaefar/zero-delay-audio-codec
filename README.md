@@ -16,8 +16,8 @@ The scope is somewhere between opus and raw PCM, so are the expected bit rates.
 ## Status
 Currently in conception phase:
 - Working implementation in GNU/Octave (done)
-- Tuning default parameters (almost done)
-- Adding documentation (ongoing)
+- Tuning default parameters (still progress *happy*, but will depend on use-case)
+- Adding documentation (good progress)
 - Implementation in C (not started, planned this winter)
 
 
@@ -25,7 +25,7 @@ Currently in conception phase:
 Each channel is processed independently, no joint coding is performed.
 The input is assumed to be sampled at 32 kHz with arbitrary precision.
 The 32 kHz are not set it stone, but the sample rate is particularly costly factor in this approach.
-Unless I see strong evidence that frequencies beyond 16kHz, that is, beyond the last auditory channel, are needed, I think it will be fine.
+Unless I see strong evidence that frequencies beyond 16 kHz, that is, beyond the last auditory channel, are needed, I think it will be fine.
 
 The stream starts with an enty-point.
 This means, the sample value is encoded with 20 bit precision and prefixed with three bits (000) to signal the entry point, and all variables are reset to default values.
@@ -58,7 +58,7 @@ Frequent updates can save bits on the residual values, but add additional bits f
 
 Hence, good predictions (which happen for harmonic signals) as well as large exponent values (which happen for non-harmonic signals) result in low significant values, which are compressed with the adaptive Huffman-coding.
 The Huffman-coded residual significant values are signalled with 1 bit (1) to distinguish them from the (0XX) control codes for entry-point, codebook and exponent updates.
-That approach results in a minimum bit rate of two bits per sample (64 kbit/s at 32kHz sample rate) which is approached in silence.
+That approach results in a minimum bit rate of two bits per sample (64 kbit/s at 32 kHz sample rate) which is approached in silence.
 In the [coloured bitmap](images/bitmap.png), significant values are indicated with yellow/orange color.
 
 The [best-performing predictor](predictor_lpc.m) is currently based on linear predicive coding (LPC) with 3 coefficients inferred from the (max) last 32 samples.
@@ -79,13 +79,13 @@ This generates the codebooks and compiles a mex file used to set up the Gammaton
 Then, run `play_demo.m` (in Octave) to see if encoding and decoding works.
 This script encodes and decodes a signal and shows the state of some internal variables of the encoder.
 
-Run `./run_benchmark.sh <folder-with-wav-files-sampled-at-32kHz> <PREDICTOR> <QUALITY> <ENTRY>` to encode and decode the audio files in the folder and get some encoding statistics where the currently considered default values are as follows: PREDICTOR = 3, QUALITY = 0, ENTRY = 10.
+Run `./run_benchmark.sh <folder-with-wav-files-sampled-at-32kHz> <PREDICTOR> <QUALITY> <ENTRY>` to encode and decode the audio files in the folder and get some encoding statistics where the currently considered default values are as follows: PREDICTOR = 3, QUALITY = 0, ENTRY = 8.
 
-To compare ZDAC to OPUS at compareable bit rates you can run `./run_opus_comparison.sh <WAVFILE> <OPUS_BITRATE> <ZDA_PREDICTOR> <ZDA_QUALITY> <ZDA_ENTRY>`.
+To compare zdac to opus at compareable bit rates you can run `./run_opus_comparison.sh <WAVFILE> <OPUS_BITRATE> <ZDA_PREDICTOR> <ZDA_QUALITY> <ZDA_ENTRY>`.
 The script encodes and decodes the WAVFILE and produces a figure comparing the respective differences to the input signal in the time domain and in the log Mel-spectrogram domain.
-After the first run with OPUS_BITRATE=512, add the bitrates of the (possibly two) channels encoded with ZDAC and set OPUS_BITRATE to this value.
+After the first run with OPUS_BITRATE=512, add the bitrates of the (possibly two) channels encoded with zdac and set OPUS_BITRATE to this value.
 The figures are saved in png-files for each channel separately.
-The comparison is not ideal, because ZDAC is developed with a target samplerate of 32kHz and OPUS is not compatible with this setting, which requires resampling prior to the comparison.
+The comparison is not ideal, because zdac is developed with a target samplerate of 32 kHz and opus is not compatible with this setting, which requires resampling prior to the comparison.
 
 ### PREDICTOR
 The predictor predicts the next sample values based on past sample values.
@@ -118,10 +118,10 @@ However, values greater than 1 probably don't make much sense.
 
 ### ENTRY
 The encoder inserts from time to time the information that is required to start decoding the bit-stream.
-The default is every 10 ms, which corresponds to every 320 samples at 32kHz sampling rate.
+The default is every 8 ms, which corresponds to every 256 samples at 32 kHz sampling rate.
 This includes encoding the current sample value with 20 bit precision and resets the predictor, because values prior to the entry point might be unknown to the decoder.
 Adding entry points more often will increase the required bits to encode the stream.
-This variable does not add a delay to the encoded bit-stream, but low values, e.g. 1ms, ensure that the decoder can recover quickly if data was lost during the transmission.
+This variable does not add a delay to the encoded bit-stream, but low values, e.g. 1 ms, ensure that the decoder can recover quickly if data was lost during the transmission.
 
 
 ## Performance (in terms of achievable bit rates)
@@ -130,13 +130,13 @@ Read the corresponding [README.md](set_opus_comparison/README.md) on how to achi
 Once prepared, the following commands encode and decode the channels of these files with different parameters and generate basic statistics on their bit rates.
 
     for QUALITY in 0 -2 -4; do
-      for ENTRY in 1 2 4 8; do
+      for ENTRY in 1 2 4 8 16 32; do
         ./run_benchmark.sh set_opus_comparison/32k_32bit_2c/ 3 $QUALITY $ENTRY
       done
     done | tee results.txt
 
     for QUALITY in 0 -2 -4; do
-      for ENTRY in 1 2 4 8; do
+      for ENTRY in 1 2 4 8 16 32; do
         RATES="[$(cat results.txt  | grep "\-Q${QUALITY}-E${ENTRY}/" | cut -d' ' -f7 | tr -s "\n" | tr "\n" ",")]";octave -q --eval "rates=${RATES};printf('QUALITY=%.1f ENTRY=%.1f %.0f %.0f %.0f kbit/s\n',${QUALITY},${ENTRY},mean(rates)./1000,min(rates)./1000,max(rates)./1000)"
       done
     done
@@ -172,14 +172,6 @@ The following average/minimum/maximum bit rates in kbit/s (per channel) across f
 |      -4 |     8 | 136 | 119 | 170 |
 |      -4 |    16 | 131 | 115 | 167 |
 
-| QUALITY | ENTRY | AVG | MIN | MAX |
-|--------:|------:|----:|----:|----:|
-|      -6 |     1 | 147 | 140 | 176 |
-|      -6 |     2 | 124 | 115 | 152 |
-|      -6 |     4 | 111 |  99 | 138 |
-|      -6 |     8 | 105 |  91 | 131 |
-|      -6 |    16 | 101 |  87 | 127 |
-
 More detailed statistics can be found the [reference results](results_reference.txt).
 An example of how to read the data:
 
@@ -194,11 +186,11 @@ If you run the benchmark script, you can find the decoded samples in correspondi
 
 ## Quick preliminary conclusion
 The approach could approximately half the required bandwidth for ultra-low-latency audio applications.
-Short term (<1ms) variability in the bit rate is probably considerable (up to approx 350 kbit/s).
+Short term (<1 ms) variability in the bit rate is probably considerable (up to approx 350 kbit/s).
 
 
 ## Discussion on possible applications
-Some discussion on the #xiph channel on freenode.org brought up objections against developing a codec which falls between raw PCM (zero-delay) and OPUS (min 2.5ms delay).
+Some discussion on the #xiph channel on freenode.org brought up objections against developing a codec which falls between raw PCM (zero-delay) and opus (min 2.5 ms delay).
 The main objections were:
 
 1) Large network overhead renders the effort useless: IP4/UDP at least needs 224 bit per packet, IP6 is worse
@@ -206,7 +198,7 @@ The main objections were:
 
 That triggered some thoughts about possible applications, where these two arguments do not apply.
 
-The main advantage of ZDAC, in a prospective real-time implementation, should be that there is no limitation on block sizes, just like with PCM.
+The main advantage of zdac, in a prospective real-time implementation, should be that there is no limitation on block sizes, just like with PCM.
 While using less bits to encode the sampled values, the quality should be perceptually on-par with 16 bit PCM.
 
 That makes it's use attactive in cases where bandwidth matters, but close-to-no-latency combined with close-to-no-compromise-in-quality are the top priorities.
@@ -222,16 +214,11 @@ It remains to be investigated in which applications a reasonable benefit can be 
 My bet is on fiber-connected devices with low-latency (non-USB) sound equipment for the natural acoustic interaction of several humans on both sides.
 Several audio streams would enable custom client-side downmixing with rich spatial information (e.g., with https://github.com/gisogrimm/ovbox).
 Or, with several microphones and several loudspeakers, even remote spatial perception could be enabled.
-Fiber-links can have, at least in the same city, latencies below 1ms.
+Fiber-links can have, at least in the same city, latencies below 1 ms.
 Non-USB sound cards can achive latencies below 3 ms.
-Counting another 1ms jitter buffer and 0.5 ms packet size it seems possibly to stay in the range of 10 ms acoustic round trip time.
+Counting another 1 ms jitter buffer and 0.5 ms packet size it seems possibly to stay in the range of 10 ms acoustic round trip time.
 
 The delay added by any codec would add twice to that number (minus 0.5 ms).
 
 Also, the saved bandwidth could be used for redundancy, i.e. sending each packet twice, to avoid drop-outs, which is another important factor for sound quality.
-
-
-
-
-
 

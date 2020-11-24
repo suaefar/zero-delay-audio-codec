@@ -12,7 +12,7 @@ if nargin() < 4
 end
 
 if nargin() < 5
-  entry = 10;
+  entry = 16;
 end
 
 assert(size(signal,2)==1,'only one channel audio supported')

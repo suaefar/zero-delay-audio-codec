@@ -11,7 +11,7 @@ graphics_toolkit qt;
 fs = 32000;
 quality = 0; % Steers width of the masking threshold filters (0 default, probably useful values -5..1)
 predictor = 3; % 0 none, 1 identity, 2 bilinear, 3 linear prediction
-entry = 10; % period of entry points in ms
+entry = 8; % period of entry points in ms
 
 % Generate a stimulus: Vary frequency and level over time
 level = [0 -20]; % dB
