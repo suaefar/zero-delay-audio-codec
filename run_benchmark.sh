@@ -16,9 +16,9 @@ FILELIST="$(mktemp)"
 
 for ((I=0;$I<${NPROC};I++)); do
   octave --eval "
-    n=${NPROC};
-    files=importdata('${FILELIST}');
-    n=min(length(files),n);
+    n = ${NPROC};
+    files = importdata('${FILELIST}');
+    n = min(length(files),n);
     indir = '${FOLDER%%/}';
     outdir = '${FOLDER%%/}_ZDA-P${PREDICTOR}-Q${QUALITY}-E${ENTRY}';
     mkdir(outdir);
