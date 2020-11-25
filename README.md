@@ -146,33 +146,18 @@ The theoretical limit with the chosen approach is 1 bit per sample, and would re
 However, that would require to constrain the Huffman tree generation, which is not implemented.
 Hence, an additional prefix bit currently indicates if a significant value or a controlcode was transmitted, resulting in a minimum of 2 bit per sample, i.e. (2*32000 =) 64 kbit/s.
 
-The following average/minimum/maximum bit rates in kbit/s (per channel) across files were achieved:
+The following average/minimum/maximum bit rates in kbit/s (per channel) across files were achieved (data with new parameters):
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
 |--------:|------:|----:|----:|----:|
-|       0 |     1 | 249 | 184 | 323 |
-|       0 |     2 | 222 | 161 | 290 |
-|       0 |     4 | 205 | 148 | 267 |
-|       0 |     8 | 196 | 141 | 253 |
-|       0 |    16 | 191 | 137 | 245 |
+|       0 |     1 | 240 | 177 | 310 |
+|       0 |     2 | 211 | 153 | 275 |
+|       0 |     4 | 194 | 140 | 254 |
+|       0 |     8 | 185 | 134 | 241 |
+|       0 |    16 | 181 | 130 | 235 |
+|       0 |    32 | 179 | 129 | 233 |
 
-| QUALITY | ENTRY | AVG | MIN | MAX |
-|--------:|------:|----:|----:|----:|
-|      -2 |     1 | 230 | 176 | 285 |
-|      -2 |     2 | 203 | 153 | 251 |
-|      -2 |     4 | 186 | 140 | 231 |
-|      -2 |     8 | 176 | 132 | 221 |
-|      -2 |    16 | 171 | 129 | 216 |
-
-| QUALITY | ENTRY | AVG | MIN | MAX |
-|--------:|------:|----:|----:|----:|
-|      -4 |     1 | 189 | 163 | 214 |
-|      -4 |     2 | 162 | 140 | 192 |
-|      -4 |     4 | 145 | 127 | 178 |
-|      -4 |     8 | 136 | 119 | 170 |
-|      -4 |    16 | 131 | 115 | 167 |
-
-More detailed statistics can be found the [reference results](results_reference.txt).
+More detailed statistics can be found the [reference results](results_reference.txt) (data with old parameters, will be updated soon)
 An example of how to read the data:
 
     RESULT: set_opus_comparison/32k_32bit_2c_ZDA-P3-Q0-E1/./03-12-German-male-speech.441.wav 1 3 0.0 1.0 252621.6 7.894 250884 1980585/1619821/180343/85400/95018 -39.0 -32.8
