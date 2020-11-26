@@ -150,21 +150,30 @@ The following average/minimum/maximum bit rates in kbit/s (per channel) across f
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
 |--------:|------:|----:|----:|----:|
-|       0 |     1 | 240 | 177 | 310 |
-|       0 |     2 | 211 | 153 | 275 |
-|       0 |     4 | 194 | 140 | 254 |
-|       0 |     8 | 185 | 134 | 241 |
-|       0 |    16 | 181 | 130 | 235 |
-|       0 |    32 | 179 | 129 | 233 |
+|       0 |     1 | 235 | 171 | 307 |
+|       0 |     2 | 208 | 148 | 275 |
+|       0 |     4 | 192 | 136 | 253 |
+|       0 |     8 | 183 | 128 | 240 |
+|       0 |    16 | 178 | 125 | 233 |
+|       0 |    32 | 176 | 124 | 230 |
+
+| QUALITY | ENTRY | AVG | MIN | MAX |
+|--------:|------:|----:|----:|----:|
+|      -2 |     1 | 217 | 164 | 268 |
+|      -2 |     2 | 189 | 141 | 236 |
+|      -2 |     4 | 173 | 128 | 217 |
+|      -2 |     8 | 163 | 121 | 207 |
+|      -2 |    16 | 159 | 118 | 202 |
+|      -2 |    32 | 157 | 116 | 200 |
 
 More detailed statistics can be found the [reference results](results_reference.txt) (data with old parameters, will be updated soon)
 An example of how to read the data:
 
-    RESULT: set_opus_comparison/32k_32bit_2c_ZDA-P3-Q0-E1/./03-12-German-male-speech.441.wav 1 3 0.0 1.0 252621.6 7.894 250884 1980585/1619821/180343/85400/95018 -39.0 -32.8
+    RESULT: set_opus_comparison/32k_32bit_2c_ZDA-P3-Q0-E1/./04-liberate.wav 1 3 0.0 1.0 237040.9 7.408 160229 1186901/957294/115184/52512/61908 -29.8 -20.6
 
-Of the file 03-12-German-male-speech.441.wav the channel 1 was compressed with predictor 3, quality 0.0, and entry 1.0 with an average of 252621.6 bit/s, i.e. 7.894 bit per sample.
-The encoder compressed 250884 samples to 1980585 bits, of which 1619821 were used to encode significant values, 180343 to encode exponent values, 85400 to encode entry points, and 95018 to encode codebook updates.
-The signal-to-(quantization)noise ratio is -39 dB, the largest deviation in a single sample value was -32.8 dB full-scale.
+Of the file 04-liberate.wav the channel 1 was compressed with predictor 3, quality 0.0, and entry 1.0 with an average of 237040.9 bit/s, i.e. 7.408 bit per sample.
+The encoder compressed 160229 samples to 1186901 bits, of which 957294 were used to encode significant values, 115184 to encode exponent values, 52512 to encode entry points, and 61908 to encode codebook updates.
+The signal-to-(quantization)noise ratio is -29.8 dB, the largest deviation in a single sample value was -20.6 dB full-scale.
 
 If you run the benchmark script, you can find the decoded samples in corresponding set_opus_comparison/32k_32bit_2c_ZDA-* folders and judge the quality for yourself.
 

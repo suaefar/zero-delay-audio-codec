@@ -109,7 +109,7 @@ quantnoise_hold_counter = 0;
 amplitude_tracker = 0;
 amplitude_hold_counter = 0;
 residual_energy = 0.1;
-residual_update = 0.1;
+residual_update = 0.05;
 spectral_update = 0.1;
 
 % Load default codebook
