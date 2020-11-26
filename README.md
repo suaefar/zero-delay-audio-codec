@@ -16,7 +16,7 @@ The scope is somewhere between opus and raw PCM, so are the expected bit rates.
 ## Status
 Currently in conception phase:
 - Working implementation in GNU/Octave (done)
-- Tuning default parameters (still progress *happy*, but will depend on use-case)
+- Tuning default parameters (still progress)
 - Adding documentation (good progress)
 - Implementation in C (not started, planned this winter)
 
@@ -46,7 +46,7 @@ In the [coloured bitmap](images/bitmap.png), codebook updates are indicated with
 The logic includes a hysteresis to avoid osscillation.
 Frequent updates can save bits on the residual values, but add additional bits for signalling the changes.
 
-All transmitted values are represented as a significant/exponent pair, where value = significant * 2^(exponent).
+All transmitted values are represented as a significant/exponent pair, where `value = significant * 2^(exponent)`.
 Only the significant (of the residue) is encoded as described in the last paragraph.
 The exponent (possible values 0:1:31) is encoded with 5 bit and only updated when required, which is signalled with three bits (001).
 In the [coloured bitmap](images/bitmap.png), exponent updates are indicated with blue color.
@@ -141,10 +141,10 @@ Once prepared, the following commands encode and decode the channels of these fi
       done
     done
 
-Encoding each sample with 16 bit, the required bit rate would be (16*32000 =) 512 kbit/s.
-The theoretical limit with the chosen approach is 1 bit per sample, and would result in (1*32000 =) 32 kbit/s.
+Encoding each sample with 16 bit, the required bit rate would be `(16*32000 =) 512 kbit/s`.
+The theoretical limit with the chosen approach is 1 bit per sample, and would result in `(1*32000 =) 32 kbit/s`.
 However, that would require to constrain the Huffman tree generation, which is not implemented.
-Hence, an additional prefix bit currently indicates if a significant value or a controlcode was transmitted, resulting in a minimum of 2 bit per sample, i.e. (2*32000 =) 64 kbit/s.
+Hence, an additional prefix bit currently indicates if a significant value or a controlcode was transmitted, resulting in a minimum of 2 bit per sample, i.e. `(2*32000 =) 64 kbit/s`.
 
 The following average/minimum/maximum bit rates in kbit/s (per channel) across files were achieved (data with new parameters):
 
@@ -175,7 +175,7 @@ Of the file 04-liberate.wav the channel 1 was compressed with predictor 3, quali
 The encoder compressed 160229 samples to 1186901 bits, of which 957294 were used to encode significant values, 115184 to encode exponent values, 52512 to encode entry points, and 61908 to encode codebook updates.
 The signal-to-(quantization)noise ratio is -29.8 dB, the largest deviation in a single sample value was -20.6 dB full-scale.
 
-If you run the benchmark script, you can find the decoded samples in corresponding set_opus_comparison/32k_32bit_2c_ZDA-* folders and judge the quality for yourself.
+If you run the benchmark script, you can find the decoded samples in corresponding `set_opus_comparison/32k_32bit_2c_ZDA-*` folders and judge the quality for yourself.
 
 
 ## Quick preliminary conclusion
