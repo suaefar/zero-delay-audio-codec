@@ -18,8 +18,11 @@ level = [0 -20]; % dB
 period = [1/2000 1/2]; % 16Hz to 16000kHz
 signal = (10.^(linspace(level(1),level(2),fs/8)./20).*sin(2.*pi*cumsum(linspace(period(1),period(2),fs/8)))).';
 
-%% Bad bad noise
-% signal = 2.*(rand(fs/8,1)-0.5);
+%% Add some noise (to see how the birate reduces)
+noiselevel = -80 % dB full-scale
+noise = 2.*(rand(size(signal))-0.5);
+noise = noise./rms(noise) .* 10.^(noiselevel./20);
+signal = signal + noise;
 
 % Only use blocks of 32 samples for later alignment in bitmap
 signal = signal(1:floor(numel(signal)/32).*32);

@@ -4,7 +4,7 @@
 function out = predictor_lpc(in)
   persistent status;
   max_context = 32;
-  max_coefficients = 3;
+  max_coefficients = 4;
 
   if nargin() < 1
     status = [];
