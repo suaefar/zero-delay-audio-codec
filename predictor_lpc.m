@@ -15,7 +15,7 @@ function out = predictor_lpc(in)
       num_coefficients = min(max_coefficients,num_samples-2);
       [status_corr, corr_lag] = xcorr(status,num_coefficients);
       if any(status_corr ~= 0)
-        a = levinson(status_corr(corr_lag>=0));   
+        a = levinson(status_corr(corr_lag>=0));
         out = -(status(end-num_coefficients+1:end) * a(end:-1:2).').*((num_samples+1)./num_samples).^2;
       else
         out = 0;
@@ -25,3 +25,4 @@ function out = predictor_lpc(in)
     end
   end
 end
+

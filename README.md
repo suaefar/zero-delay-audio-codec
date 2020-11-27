@@ -61,9 +61,11 @@ The Huffman-coded residual significant values are signalled with 1 bit (1) to di
 That approach results in a minimum bit rate of two bits per sample (64 kbit/s at 32 kHz sample rate) which is approached in silence.
 In the [coloured bitmap](images/bitmap.png), significant values are indicated with yellow/orange color.
 
-The [best-performing predictor](predictor_lpc.m) is currently based on linear predicive coding (LPC) with 3 coefficients inferred from the (max) last 32 samples.
-Other values work, too: 2/3/4 and 16/32/64 seems to cover the range.
-However, a deep neural network based decoder might perform better?
+The [best-performing predictor](predictor_lpc.m) is currently based on linear predicive coding (LPC) with 4 coefficients inferred from the (max) last 32 samples.
+Other values work as well.
+Higher values increase complexity and only help on predictable signals.
+You can observe the performance of the predictor by running the [demo script](play_demo.m) with different predictors (e.g., set `predictor = 0`).
+Here, a deep neural network based predictor might perform even better?
 
 The masking model, which runs only in the encoder, is based on a 39-band fourth-order Gammetone filterbank implemented as IIR filters.
 The spectral energy in each band is tracked and the minimum distance (in log2-domain) of the spectral energy to the pre-calculatred spectral energy of a full-scale model quantization noise determines the proposed exponent.
@@ -129,15 +131,15 @@ A small parameter space exploration for different values for QUALITY and ENTRY.
 Read the corresponding [README.md](set_opus_comparison/README.md) on how to achieve the required audio samples.
 Once prepared, the following commands encode and decode the channels of these files with different parameters and generate basic statistics on their bit rates.
 
-    for QUALITY in 0 -2 -4; do
+    for QUALITY in 0 -2; do
       for ENTRY in 1 2 4 8 16 32; do
         ./run_benchmark.sh set_opus_comparison/32k_32bit_2c/ 3 $QUALITY $ENTRY
       done
     done | tee results.txt
 
-    for QUALITY in 0 -2 -4; do
+    for QUALITY in 0 -2; do
       for ENTRY in 1 2 4 8 16 32; do
-        RATES="[$(cat results.txt  | grep "\-Q${QUALITY}-E${ENTRY}/" | cut -d' ' -f7 | tr -s "\n" | tr "\n" ",")]";octave -q --eval "rates=${RATES};printf('QUALITY=%.1f ENTRY=%.1f %.0f %.0f %.0f kbit/s\n',${QUALITY},${ENTRY},mean(rates)./1000,min(rates)./1000,max(rates)./1000)"
+        RATES="[$(cat results.txt  | grep "\-Q${QUALITY}-E${ENTRY}/" | cut -d' ' -f7 | tr -s "\n" | tr "\n" ",")]"; octave -q --eval "rates=${RATES};printf('QUALITY=%.1f ENTRY=%.1f %.0f %.0f %.0f kbit/s\n',${QUALITY},${ENTRY},mean(rates)./1000,min(rates)./1000,max(rates)./1000)"
       done
     done
 
@@ -146,41 +148,41 @@ The theoretical limit with the chosen approach is 1 bit per sample, and would re
 However, that would require to constrain the Huffman tree generation, which is not implemented.
 Hence, an additional prefix bit currently indicates if a significant value or a controlcode was transmitted, resulting in a minimum of 2 bit per sample, i.e. `(2*32000 =) 64 kbit/s`.
 
-The following average/minimum/maximum bit rates in kbit/s (per channel) across files were achieved (data with new parameters):
+The following average/minimum/maximum bit rates in kbit/s (per channel) across files were achieved:
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
 |--------:|------:|----:|----:|----:|
-|       0 |     1 | 235 | 171 | 307 |
-|       0 |     2 | 208 | 148 | 275 |
-|       0 |     4 | 192 | 136 | 253 |
-|       0 |     8 | 183 | 128 | 240 |
-|       0 |    16 | 178 | 125 | 233 |
-|       0 |    32 | 176 | 124 | 230 |
+|       0 |     1 | 235 | 172 | 306 |
+|       0 |     2 | 208 | 149 | 274 |
+|       0 |     4 | 191 | 136 | 253 |
+|       0 |     8 | 182 | 130 | 239 |
+|       0 |    16 | 178 | 126 | 233 |
+|       0 |    32 | 176 | 125 | 230 |
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
 |--------:|------:|----:|----:|----:|
-|      -2 |     1 | 217 | 164 | 268 |
-|      -2 |     2 | 189 | 141 | 236 |
-|      -2 |     4 | 173 | 128 | 217 |
-|      -2 |     8 | 163 | 121 | 207 |
-|      -2 |    16 | 159 | 118 | 202 |
-|      -2 |    32 | 157 | 116 | 200 |
+|      -2 |     1 | 217 | 165 | 268 |
+|      -2 |     2 | 189 | 142 | 235 |
+|      -2 |     4 | 172 | 129 | 217 |
+|      -2 |     8 | 163 | 122 | 207 |
+|      -2 |    16 | 159 | 119 | 202 |
+|      -2 |    32 | 156 | 116 | 201 |
 
-More detailed statistics can be found the [reference results](results_reference.txt) (data with old parameters, will be updated soon)
+More detailed statistics can be found the [reference results](results_reference.txt)
 An example of how to read the data:
 
-    RESULT: set_opus_comparison/32k_32bit_2c_ZDA-P3-Q0-E1/./04-liberate.wav 1 3 0.0 1.0 237040.9 7.408 160229 1186901/957294/115184/52512/61908 -29.8 -20.6
+    RESULT: set_opus_comparison/32k_32bit_2c_ZDA-P3-Q0-E1/./04-liberate.wav 1 3 0.0 1.0 236876.2 7.402 160229 1186076/956106/115184/52336/62447 -29.7 -20.8
 
-Of the file 04-liberate.wav the channel 1 was compressed with predictor 3, quality 0.0, and entry 1.0 with an average of 237040.9 bit/s, i.e. 7.408 bit per sample.
-The encoder compressed 160229 samples to 1186901 bits, of which 957294 were used to encode significant values, 115184 to encode exponent values, 52512 to encode entry points, and 61908 to encode codebook updates.
-The signal-to-(quantization)noise ratio is -29.8 dB, the largest deviation in a single sample value was -20.6 dB full-scale.
+Of the file 04-liberate.wav the channel 1 was compressed with predictor 3, quality 0.0, and entry 1.0 with an average of 236876.2 bit/s, i.e. 7.402 bit per sample.
+The encoder compressed 160229 samples to 1186076 bits, of which 956106 were used to encode significant values, 115184 to encode exponent values, 52336 to encode entry points, and 62447 to encode codebook updates.
+The signal-to-(quantization)noise ratio is -29.7 dB, the largest deviation in a single sample value was -20.8 dB full-scale.
 
-If you run the benchmark script, you can find the decoded samples in corresponding `set_opus_comparison/32k_32bit_2c_ZDA-*` folders and judge the quality for yourself.
+If you run the benchmark script, you can find the decoded samples in the corresponding `set_opus_comparison/32k_32bit_2c_ZDA-*` folders and judge the quality for yourself.
 
 
 ## Quick preliminary conclusion
 The approach could approximately half the required bandwidth for ultra-low-latency audio applications.
-Short term (<1 ms) variability in the bit rate is probably considerable (up to approx 350 kbit/s).
+However, short term (<1 ms) variability in the bit rate is probably considerable (up to approx 350 kbit/s).
 
 
 ## Discussion on possible applications
