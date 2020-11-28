@@ -1,31 +1,31 @@
 ![Image](images/bitmap.png)
 # A free zero-delay audio codec (zdac)
-Compress and encode audio data with no reference to future samples, using:
+Compress and encode audio data of arbitrary sample rates with no reference to future samples, using:
 1) (linear) predictive coding,
 2) adaptive quantization of the residue steered by a masking model,
-3) and entropy coding (Huffman)
+3) and entropy coding
 
 Author: [Marc René Schädler](mailto:suaefar@googlemail.com)
 
 ## Goal
 Design an audio codec without perceptual artifacts which does not require buffering future samples.
-The user decides which block size is suitable for an application.
+The user decides which block size (any size) and sample rate (any rate) is suitable for an application.
 The scope is somewhere between opus and raw PCM, so are the expected bit rates.
 
 
 ## Status
 Currently in conception phase:
 - Working implementation in GNU/Octave (done)
-- Tuning default parameters (still progress)
-- Adding documentation (good progress)
+- Tuning default parameters (settling)
+- Adding documentation (done for now, may add on demand)
 - Implementation in C (not started, planned this winter)
 
 
 ## Short description
 Each channel is processed independently, no joint coding is performed.
-The input is assumed to be sampled at 32 kHz with arbitrary precision.
-The 32 kHz are not set it stone, but the sample rate is particularly costly factor in this approach.
-Unless I see strong evidence that frequencies beyond 16 kHz, that is, beyond the last auditory channel, are needed, I think it will be fine.
+The input is assumed to be sampled with arbitrary precision.
+Arbitrary sample rates are supported.
+A very good compromise between bit rate and quality seems to be at 32 kHz.
 
 The stream starts with an enty-point.
 This means, the sample value is encoded with 20 bit precision and prefixed with three bits (000) to signal the entry point, and all variables are reset to default values.
@@ -80,14 +80,15 @@ This generates the codebooks and compiles a mex file used to set up the Gammaton
 
 Then, run `play_demo.m` (in Octave) to see if encoding and decoding works.
 This script encodes and decodes a signal and shows the state of some internal variables of the encoder.
+You may increase the level of the added noise to see how the masking model works.
 
-Run `./run_benchmark.sh <folder-with-wav-files-sampled-at-32kHz> <PREDICTOR> <QUALITY> <ENTRY>` to encode and decode the audio files in the folder and get some encoding statistics where the currently considered default values are as follows: PREDICTOR = 3, QUALITY = 0, ENTRY = 8.
+Run `./run_benchmark.sh <folder-with-wav-files> <PREDICTOR> <QUALITY> <ENTRY>` to encode and decode the audio files in the folder and get some encoding statistics where the currently considered default values are as follows: PREDICTOR = 3, QUALITY = 0, ENTRY = 8.
 
 To compare zdac to opus at compareable bit rates you can run `./run_opus_comparison.sh <WAVFILE> <OPUS_BITRATE> <ZDA_PREDICTOR> <ZDA_QUALITY> <ZDA_ENTRY>`.
 The script encodes and decodes the WAVFILE and produces a figure comparing the respective differences to the input signal in the time domain and in the log Mel-spectrogram domain.
 After the first run with OPUS_BITRATE=512, add the bitrates of the (possibly two) channels encoded with zdac and set OPUS_BITRATE to this value.
 The figures are saved in png-files for each channel separately.
-The comparison is not ideal, because zdac is developed with a target samplerate of 32 kHz and opus is not compatible with this setting, which requires resampling prior to the comparison.
+The comparison is not ideal, because zdac was developed with a target samplerate of 32 kHz and opus is not compatible with this setting, which requires resampling prior to the comparison.
 
 ### PREDICTOR
 The predictor predicts the next sample values based on past sample values.
@@ -101,7 +102,7 @@ Available predictors are:
 0) [Zero](predictor_zero.m) predicts always zero
 1) [Simple](predictor_simple.m) predicts the last value
 2) [Linear extrapolation](predictor_linear.m) Extrapolates linearly using the last 2 samples
-3) [Linear predictive coding](predictor_lpc.m) Uses LPC with (max) three coefficients on the (max) last 32 samples to predict the next sample
+3) [Linear predictive coding](predictor_lpc.m) Uses LPC with (max) four coefficients on the (max) last 32 samples to predict the next sample
 
 Possible future predictors could be:
 
@@ -111,7 +112,7 @@ Possible future predictors could be:
 The encoder estimates the current masking with a 39-band Gammatone filterbank.
 The Q-factor (i.e., width) of these filters is steered with the quality variable.
 The improvements to the bit rate by the masking model come with a loss of information.
-In the ideal case, the loss is not perceivable.
+In the ideal case, this loss is not perceivable.
 
 Negative values mean broader filters, and hence increase the spectral masking of off-frequency signal parts.
 A value of 0 is the default width, while -2 doubles the filter width, and -4 results in a quarter of the default filter width.
@@ -127,7 +128,7 @@ This variable does not add a delay to the encoded bit-stream, but low values, e.
 
 
 ## Performance (in terms of achievable bit rates)
-A small parameter space exploration for different values for QUALITY and ENTRY.
+A small parameter space exploration for different values of QUALITY and ENTRY with a sample rate of 32 kHz.
 Read the corresponding [README.md](set_opus_comparison/README.md) on how to achieve the required audio samples.
 Once prepared, the following commands encode and decode the channels of these files with different parameters and generate basic statistics on their bit rates.
 
@@ -136,19 +137,19 @@ Once prepared, the following commands encode and decode the channels of these fi
         ./run_benchmark.sh set_opus_comparison/32k_32bit_2c/ 3 $QUALITY $ENTRY
       done
     done | tee results.txt
-
+    
     for QUALITY in 0 -2; do
       for ENTRY in 1 2 4 8 16 32; do
         RATES="[$(cat results.txt  | grep "\-Q${QUALITY}-E${ENTRY}/" | cut -d' ' -f7 | tr -s "\n" | tr "\n" ",")]"; octave -q --eval "rates=${RATES};printf('QUALITY=%.1f ENTRY=%.1f %.0f %.0f %.0f kbit/s\n',${QUALITY},${ENTRY},mean(rates)./1000,min(rates)./1000,max(rates)./1000)"
       done
     done
 
-Encoding each sample with 16 bit, the required bit rate would be `(16*32000 =) 512 kbit/s`.
+Encoding each sample with 16 bit at 32 kHz sample rate, the required bit rate would be `(16*32000 =) 512 kbit/s`.
 The theoretical limit with the chosen approach is 1 bit per sample, and would result in `(1*32000 =) 32 kbit/s`.
-However, that would require to constrain the Huffman tree generation, which is not implemented.
+However, that would require to constrain the codebook generation, which is not implemented.
 Hence, an additional prefix bit currently indicates if a significant value or a controlcode was transmitted, resulting in a minimum of 2 bit per sample, i.e. `(2*32000 =) 64 kbit/s`.
 
-The following average/minimum/maximum bit rates in kbit/s (per channel) across files were achieved:
+The following average/minimum/maximum bit rates in kbit/s (per channel) across files were achieved with a sample rate of 32 kHz:
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
 |--------:|------:|----:|----:|----:|
@@ -178,11 +179,12 @@ The encoder compressed 160229 samples to 1186076 bits, of which 956106 were used
 The signal-to-(quantization)noise ratio is -29.7 dB, the largest deviation in a single sample value was -20.8 dB full-scale.
 
 If you run the benchmark script, you can find the decoded samples in the corresponding `set_opus_comparison/32k_32bit_2c_ZDA-*` folders and judge the quality for yourself.
+If you think 32 kHz sample rate are not sufficent, you can modify the code snippet to use the `set_opus_comparison/44k_32bit_2c/` folder and re-run the benchmark.
 
 
 ## Quick preliminary conclusion
 The approach could approximately half the required bandwidth for ultra-low-latency audio applications.
-However, short term (<1 ms) variability in the bit rate is probably considerable (up to approx 350 kbit/s).
+Short term (<1 ms) variability in the bit rate is probably considerable (up to approx 350 kbit/s), but less than the uncompressed bit rate.
 
 
 ## Discussion on possible applications
@@ -194,7 +196,7 @@ The main objections were:
 
 That triggered some thoughts about possible applications, where these two arguments do not apply.
 
-The main advantage of zdac, in a prospective real-time implementation, should be that there is no limitation on block sizes, just like with PCM.
+The main advantage of zdac, in a prospective real-time implementation, should be that there is no limitation on block sizes or sample rates, just like with PCM.
 While using less bits to encode the sampled values, the quality should be perceptually on-par with 16 bit PCM.
 
 That makes it's use attactive in cases where bandwidth matters, but close-to-no-latency combined with close-to-no-compromise-in-quality are the top priorities.
