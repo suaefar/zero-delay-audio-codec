@@ -13,7 +13,7 @@ predict = predictors{predictor+1};
 
 % Alphabet used for significant quantization
 significant_alphabet_bits = int32(12);
-significant_min_bits = 4;
+significant_min_bits = 2;
 significant_factor = 2.^(significant_alphabet_bits-1)-1;
 residue_factor = 2.*significant_factor;
 
@@ -30,19 +30,13 @@ sample_alphabet_bits = ceil(log2(sample_factor.*2));
 codebook_alphabet = int32(0:13);
 codebook_alphabet_bits = int32(ceil(log2(numel(codebook_alphabet))));
 
-% Control code alphabet
-controlcode_alphabet = {'entry' 'exponent' 'codebook' 'stop'};
-controlcode_id_entry = 1;
-controlcode_id_exponent = 2;
-controlcode_id_codebook = 3;
-controlcode_id_stop = 4;
-
-% Enable decoder to start decoding every entry_period samples
-entry_period = 10 .* (fs./1000); % 10 ms
-
-% Define control code tree
-control_tree = {{'entry' 'exponent'} {'codebook' 'stop'}};
-[control_symbols control_codes] = gencodebook(control_tree);
+% Control codes
+controlcode_prefixbits = 3;
+controlcode = [true(1,controlcode_prefixbits-1) false];
+controlcode_entry = 0;
+controlcode_exponent = 1;
+controlcode_codebook = 2;
+controlcode_stop = 3;
 
 % Define variables which represent the state of the decoder
 sample = int32(0); % Current sample value (20bit)
@@ -51,8 +45,8 @@ significant = int32(0); % Current significant value
 residue = int32(0); % Current residual value
 codebook = int32(0); % Select codebook
 
-% Load huffman trees and codebooks
-codebook_cache_file = sprintf('codebooks-%i.bin',significant_alphabet_bits);
+% Load decoding trees and codebooks
+codebook_cache_file = 'codebook.bin';
 load(codebook_cache_file);
 
 %% DECODER PART
@@ -69,6 +63,7 @@ codebook_default = codebook; % Default codebook for entry points
 sample_value = 0;
 sample_decoded = int32(0);
 current_bit = false;
+controlcode_decode = int32(2.^(2-1:-1:0));
 sample_bits = zeros(1,sample_alphabet_bits,'logical');
 sample_decode = int32(2.^(sample_alphabet_bits-1:-1:0));
 exponent_bits = zeros(1,exponent_alphabet_bits,'logical');
@@ -79,10 +74,7 @@ codebook_bits = zeros(1,codebook_alphabet_bits,'logical');
 codebook_decode = int32(2.^(codebook_alphabet_bits-1:-1:0));
 
 % Load default codebook
-[huffman_symbols huffman_codes huffman_tree] = codebooks{1 + codebook_default - codebook_alphabet(1)}{:};
-
-% Prepare initial decoding tree
-tree = {control_tree huffman_tree};
+[symbols codes tree] = codebooks{1 + codebook_default - codebook_alphabet(1)}{:};
 tree_traverse = tree;
 
 % Reset predictor
@@ -92,7 +84,7 @@ predictor_initialized = false;
 
 % Debug variables
 
-while message_pointer < num_bits
+while message_pointer < num_bits 
   % Read next bit and advance in tree
   message_pointer = message_pointer + 1;
   current_bit = message(message_pointer);
@@ -101,58 +93,67 @@ while message_pointer < num_bits
     tree_traverse = leave;
   else
     switch (leave)
-      case 'entry'
-        % Get corresponding bits
-        sample_bits = int32(message(message_pointer+1:message_pointer+sample_alphabet_bits));
-        message_pointer = message_pointer + sample_alphabet_bits;
+      case 'control'
+        % Get next two bits 
+        controlcode_bits = int32(message(message_pointer+1:message_pointer+2));
+        message_pointer = message_pointer + 2;
         
-        % Decode values
-        sample = sum(sample_bits.*sample_decode,'native') - sample_factor;
-    
-        % Set default exponent
-        exponent = exponent_default;
-    
-        % Set default codebook
-        codebook = codebook_default;
+        % Decode control code
+        controlcode = sum(controlcode_bits.*controlcode_decode,'native');
         
-        % Use the new codebook for further decoding
-        [huffman_symbols huffman_codes huffman_tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
-        tree = {control_tree huffman_tree};
+        switch controlcode
+          case controlcode_entry
+            % Get corresponding bits
+            sample_bits = int32(message(message_pointer+1:message_pointer+sample_alphabet_bits));
+            message_pointer = message_pointer + sample_alphabet_bits;
+            
+            % Decode values
+            sample = sum(sample_bits.*sample_decode,'native') - sample_factor;
         
-        % Reset predictor
-        predict();
-        sample_predicted = int32(0);
+            % Set default exponent
+            exponent = exponent_default;
         
-        % Reconstruct sampled signal
-        sample_value = double(sample)./double(sample_factor);
-        
-        % Write reconstructed sample value to signal buffer
-        signal_buffer(signal_pointer+1) = sample_value;
-        signal_pointer = signal_pointer + 1;   
-        
-      case 'exponent'
-        % Get corresponding bits
-        exponent_bits = int32(message(message_pointer+1:message_pointer+exponent_alphabet_bits));
-        message_pointer = message_pointer + exponent_alphabet_bits;
+            % Set default codebook
+            codebook = codebook_default;
+            
+            % Use the new codebook for further decoding
+            [symbols codes tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
+            
+            % Reset predictor
+            predict();
+            sample_predicted = int32(0);
+            
+            % Reconstruct sampled signal
+            sample_value = double(sample)./double(sample_factor);
+            
+            % Write reconstructed sample value to signal buffer
+            signal_buffer(signal_pointer+1) = sample_value;
+            signal_pointer = signal_pointer + 1;   
+            
+          case controlcode_exponent
+            % Get corresponding bits
+            exponent_bits = int32(message(message_pointer+1:message_pointer+exponent_alphabet_bits));
+            message_pointer = message_pointer + exponent_alphabet_bits;
 
-        % Decode values
-        exponent = exponent_alphabet(1+sum(exponent_bits.*exponent_decode,'native'));
+            % Decode values
+            exponent = exponent_alphabet(1+sum(exponent_bits.*exponent_decode,'native'));
 
-      case 'codebook'
-        % Get corresponding bits
-        codebook_bits = int32(message(message_pointer+1:message_pointer+codebook_alphabet_bits));
-        message_pointer = message_pointer + codebook_alphabet_bits;
-        
-        % Decode values
-        codebook = codebook_alphabet(1+sum(codebook_bits.*codebook_decode,'native'));
+          case controlcode_codebook
+            % Get corresponding bits
+            codebook_bits = int32(message(message_pointer+1:message_pointer+codebook_alphabet_bits));
+            message_pointer = message_pointer + codebook_alphabet_bits;
+            
+            % Decode values
+            codebook = codebook_alphabet(1+sum(codebook_bits.*codebook_decode,'native'));
 
-        % Use the new codebook for further decoding
-        [huffman_symbols huffman_codes huffman_tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
-        tree = {control_tree huffman_tree};
+            % Use the new codebook for further decoding
+            [symbols codes tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
 
-      case 'stop'
-        break;
-        
+          case controlcode_stop
+            break;
+          otherwise
+            error('unknown control code')
+        end
       otherwise
         residue = leave;
         

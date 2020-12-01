@@ -12,7 +12,7 @@ significant_factor = 2.^(significant_alphabet_bits-1)-1;
 residue_factor = 2.*significant_factor;
 codebook_alphabet = int32(0:13);
 
-controlcode_prefixbits = 4;
+controlcode_prefixbits = 3;
 
 for i=1:14
   residue_alphabet_prob = normpdf(-residue_factor:residue_factor,0,2.^-double(codebook_alphabet(i)).*double(residue_factor));
@@ -25,7 +25,7 @@ for i=1:14
   alphabet_s = alphabet(sidx);
   frequencies_s = frequencies(sidx);
 
-  tree = reserved_huffman(frequencies_s, alphabet_s, controlcode_prefixbits);
+  tree = reserved_huffman(frequencies_s, alphabet_s, controlcode_prefixbits-1);
   [symbols, codes] = gencodebook(tree);
 
   controlid = find(strcmp(symbols,'control'));

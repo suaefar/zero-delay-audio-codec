@@ -12,7 +12,7 @@ if nargin() < 4
 end
 
 if nargin() < 5
-  entry = 16;
+  entry = 8;
 end
 
 assert(size(signal,2)==1,'only one channel audio supported')
@@ -40,19 +40,16 @@ sample_alphabet_bits = ceil(log2(sample_factor.*2));
 codebook_alphabet = int32(0:13);
 codebook_alphabet_bits = int32(ceil(log2(numel(codebook_alphabet))));
 
-% Control code alphabet
-controlcode_alphabet = {'entry' 'exponent' 'codebook' 'stop'};
-controlcode_id_entry = 1;
-controlcode_id_exponent = 2;
-controlcode_id_codebook = 3;
-controlcode_id_stop = 4;
+% Control codes
+controlcode_prefixbits = 3;
+controlcode = [true(1,controlcode_prefixbits-1) false];
+controlcode_entry = 0;
+controlcode_exponent = 1;
+controlcode_codebook = 2;
+controlcode_stop = 3;
 
 % Enable decoder to start decoding every entry_period samples
 entry_period = round(entry .* (fs./1000)); % ms
-
-% Define control code tree
-control_tree = {{'entry' 'exponent'} {'codebook' 'stop'}};
-[control_symbols control_codes] = gencodebook(control_tree);
 
 % Define variables which represent the state of the decoder
 sample = int32(0); % Current sample value (20bit)
@@ -61,21 +58,30 @@ significant = int32(0); % Current significant value
 residue = int32(0); % Current residual value
 codebook = int32(0); % Select codebook
 
-% Build huffman trees and codebooks
-codebook_cache_file = sprintf('codebooks-%i.bin',significant_alphabet_bits);
+% Build decoding trees and codebooks
+codebook_cache_file = 'codebook.bin';
 if ~exist(codebook_cache_file)
   % Generate codebooks for different residual rms values
   codebooks = cell(numel(codebook_alphabet),1);
   for i=1:numel(codebook_alphabet)
     residue_alphabet_prob = normpdf(-residue_factor:residue_factor,0,2.^-double(codebook_alphabet(i)).*double(residue_factor));
-    residue_alphabet_freq = max(0.05,fs.*residue_alphabet_prob./sum(residue_alphabet_prob));
-    huffman_tree = huffman(residue_alphabet_freq,num2cell(int32(-residue_factor:residue_factor)));
-    [huffman_symbols, huffman_codes] = gencodebook(huffman_tree);
-    huffman_symbols = [huffman_symbols{:}];
-    [~, vidx] = sort(huffman_symbols);
-    huffman_symbols = huffman_symbols(vidx);
-    huffman_codes = huffman_codes(vidx);
-    codebooks{i} = {huffman_symbols huffman_codes huffman_tree};
+    residue_alphabet_freq = max(0.000002,residue_alphabet_prob./sum(residue_alphabet_prob));
+    frequencies = residue_alphabet_freq;
+    alphabet = num2cell(int32(-residue_factor:residue_factor));
+    [~, sidx] = sort(frequencies,'descend');
+    frequencies_s = frequencies(sidx);
+    alphabet_s = alphabet(sidx);
+    % Generate decoding tree with reserved code for control
+    tree = reserved_huffman(frequencies_s, alphabet_s, controlcode_prefixbits-1);
+    [symbols, codes] = gencodebook(tree);
+    controlid = find(strcmp(symbols,'control'));
+    symbols(controlid) = [];
+    codes(controlid) = [];
+    symbols = [symbols{:}];
+    [~, sidx] = sort(symbols);
+    symbols = symbols(sidx);
+    codes = codes(sidx);
+    codebooks{i} = {symbols codes tree};
   end
   save('-binary', codebook_cache_file, 'codebooks');
 else
@@ -113,7 +119,7 @@ residual_update = 0.05;
 spectral_update = 0.1;
 
 % Load default codebook
-[huffman_symbols huffman_codes huffman_tree] = codebooks{1 + codebook_default - codebook_alphabet(1)}{:};
+[symbols codes tree] = codebooks{1 + codebook_default - codebook_alphabet(1)}{:};
 
 % Analyis filters for dynamic quantization adaptation
 quantnoise_model = rand(fs,1)-0.5;
@@ -157,7 +163,7 @@ for i=1:num_samples
     
     % Compile raw sample bits
     sample_bits = dec2bin(sample+sample_factor,sample_alphabet_bits) == '1';
-    insert_bits = [false control_codes{controlcode_id_entry} sample_bits];
+    insert_bits = [controlcode dec2bin(controlcode_entry,2)=='1' sample_bits];
 
     % Now sync the state with the decoder
 
@@ -170,7 +176,7 @@ for i=1:num_samples
     codebook_proposed = codebook_default;
     
     % Use the announced codebook   
-    [huffman_symbols huffman_codes huffman_tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
+    [symbols codes tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
     
     % Reset predictor
     predict();
@@ -178,10 +184,10 @@ for i=1:num_samples
     
     % Insert the compiled bits into the message
     message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = insert_bits;
-    debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)+2.*controlcode_id_entry;
+    debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)+2.*(controlcode_entry+1);
     
     message_pointer = message_pointer + numel(insert_bits);
-    debug_controlcodes(debug_controlcodes_pointer+1) = controlcode_id_entry;
+    debug_controlcodes(debug_controlcodes_pointer+1) = controlcode_entry;
     debug_bits(debug_controlcodes_pointer+1) = numel(insert_bits);
     debug_controlcodes_pointer = debug_controlcodes_pointer + 1;
   else
@@ -236,16 +242,16 @@ for i=1:num_samples
 
       % Compile exponent bits
       exponent_bits = dec2bin(exponent-exponent_alphabet(1),exponent_alphabet_bits)=='1';
-      insert_bits = [false control_codes{controlcode_id_exponent} exponent_bits];
+      insert_bits = [controlcode dec2bin(controlcode_exponent,2)=='1' exponent_bits];
 
       % Remember current exponent
       exponent_last = exponent;
       
       % Insert the compiled bits into the message
       message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = insert_bits;
-      debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)+2.*controlcode_id_exponent;
+      debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)+2.*(controlcode_exponent+1);
       message_pointer = message_pointer + numel(insert_bits);
-      debug_controlcodes(debug_controlcodes_pointer+1) = controlcode_id_exponent;
+      debug_controlcodes(debug_controlcodes_pointer+1) = controlcode_exponent;
       debug_bits(debug_controlcodes_pointer+1) = numel(insert_bits);
       debug_controlcodes_pointer = debug_controlcodes_pointer + 1;
     end
@@ -266,16 +272,16 @@ for i=1:num_samples
       
       % Compile codebook bits
       codebook_bits = dec2bin(codebook-codebook_alphabet(1),codebook_alphabet_bits)=='1';
-      insert_bits = [false control_codes{controlcode_id_codebook} codebook_bits];
+      insert_bits = [controlcode dec2bin(controlcode_codebook,2)=='1' codebook_bits];
 
       % Use the announced codebook
-      [huffman_symbols huffman_codes huffman_tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
+      [symbols codes tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
 
       % Insert the compiled bits into the message
       message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = insert_bits;
-      debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)+2.*controlcode_id_codebook;
+      debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)+2.*(controlcode_codebook+1);
       message_pointer = message_pointer + numel(insert_bits);
-      debug_controlcodes(debug_controlcodes_pointer+1) = controlcode_id_codebook;
+      debug_controlcodes(debug_controlcodes_pointer+1) = controlcode_codebook;
       debug_bits(debug_controlcodes_pointer+1) = numel(insert_bits);
       debug_controlcodes_pointer = debug_controlcodes_pointer + 1;
     end
@@ -291,7 +297,7 @@ for i=1:num_samples
     residual_energy = residual_energy .* (1-residual_update) + (double(residue)./double(residue_factor)).^2 .* residual_update;
 
     % Compile bits
-    insert_bits = [true huffman_codes{1+residue+residue_factor}];
+    insert_bits = codes{1+residue+residue_factor};
    
     % Insert the compiled bits into the message
     message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = insert_bits;
@@ -310,11 +316,12 @@ for i=1:num_samples
   end
 end
 % Tell the decoder to stop
-insert_bits = [false control_codes{controlcode_id_stop}];
+insert_bits = [controlcode dec2bin(controlcode_stop,2)=='1'];
+
 % Insert the compiled bits into the message
 message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = insert_bits;
 message_pointer = message_pointer + numel(insert_bits);
-debug_controlcodes(debug_controlcodes_pointer+1) = controlcode_id_stop;
+debug_controlcodes(debug_controlcodes_pointer+1) = controlcode_stop;
 debug_bits(debug_controlcodes_pointer+1) = numel(insert_bits);
 debug_controlcodes_pointer = debug_controlcodes_pointer + 1;
 
