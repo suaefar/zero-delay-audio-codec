@@ -41,7 +41,7 @@ codebook_alphabet = int32(0:13);
 codebook_alphabet_bits = int32(ceil(log2(numel(codebook_alphabet))));
 
 % Control codes
-controlcode_prefixbits = 3;
+controlcode_prefixbits = 4;
 controlcode = [true(1,controlcode_prefixbits-1) false];
 controlcode_entry = 0;
 controlcode_exponent = 1;
@@ -303,7 +303,7 @@ for i=1:num_samples
     message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = insert_bits;
     debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)-2.*mod(i,2);
     message_pointer = message_pointer + numel(insert_bits);
-    debug_controlcodes(debug_controlcodes_pointer+1) = 0;
+    debug_controlcodes(debug_controlcodes_pointer+1) = -1;
     debug_bits(debug_controlcodes_pointer+1) = numel(insert_bits);
     debug_controlcodes_pointer = debug_controlcodes_pointer + 1;
       

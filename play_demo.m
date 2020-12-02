@@ -42,10 +42,10 @@ bits_per_second_ref = 16.*fs
 
 num_samples = size(signal,1);
 num_bits = numel(message);
-num_significant_bits = sum(bits(controlcodes==0));
-num_entry_bits = sum(bits(controlcodes==1));
-num_exponent_bits = sum(bits(controlcodes==2));
-num_codebook_bits = sum(bits(controlcodes==3));
+num_significant_bits = sum(bits(controlcodes==-1));
+num_entry_bits = sum(bits(controlcodes==0));
+num_exponent_bits = sum(bits(controlcodes==1));
+num_codebook_bits = sum(bits(controlcodes==2));
 bits_per_sample = num_bits./num_samples;
 bits_per_second = bits_per_sample.*fs;
 
@@ -58,7 +58,7 @@ ylim([-1 4]);
 grid on;
 title('Controlcode: 0 significant, 1 entry, 2 exponent, 3 codebook, 4 stop');
 subplot(2,2,2);
-bar([0 1 2 3 4],log10(histc(controlcodes,[0 1 2 3 4])));
+bar([0 1 2 3 4],log10(histc(controlcodes,[-1 0 1 2 3])));
 yticks(log10(2.^(0:1:15)));
 yticklabels(2.^(0:1:15));
 xticklabels({'significant','entry','exponent','codebook','stop'});
