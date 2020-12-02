@@ -43,7 +43,6 @@ If the prediction is close to the actual value, the (absolute value of the) resi
 To encode (absolute-value-wise) small residuals with less bits, a set of codebooks is used which assume different root-mean-square (RMS) values of the residual, namely 2^-(0:13).
 The codebooks are generated assuming a (floored, to limit code lengths) normal distribution with the corresponding RMS-values and are known to the encoder and decoder.
 The prefix `1110` has an identical meaning in all codebooks; it indicates that a controlcode encoded with two bits will follow.
-Its length is optimal for a wide range of setting.
 The energy of the residual signal is tracked in the encoder and the used codebook is updated when needed.
 The codebook (possible values 0:13) is encoded with 4 bit, and a change is signalled with the code `111010`.
 In the [coloured bitmap](images/bitmap.png), codebook updates are indicated with purple color.
@@ -152,38 +151,25 @@ Encoding each sample with 16 bit at 32 kHz sample rate, the required bit rate wo
 The lower bit rate limit with the chosen approach is 1 bit per sample, and would result in `(1*32000 =) 32 kbit/s`.
 This value is approached, but never reached, in silence for high values of ENTRY.
 
-The following average/minimum/maximum bit rates in kbit/s (per channel) across files were achieved with a sample rate of 32 kHz:
-
-OLD DATA AHEAD (AGAIN!).
-Improvements incoming due to new coding scheme.
-Will update soon.
+The following average/minimum/maximum bit rates in kbit/s (per channel) across all files were achieved with a sample rate of 32 kHz:
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
 |--------:|------:|----:|----:|----:|
 |       0 |     1 | 219 | 155 | 291 |
 |       0 |     2 | 187 | 127 | 253 |
-|       0 |     4 | 168 | 112 | 228 |
+|       0 |     4 | 168 | 111 | 229 |
 |       0 |     8 | 158 | 103 | 214 |
-|       0 |    16 | 153 | 110 | 208 |
+|       0 |    16 | 153 | 100 | 207 |
 |       0 |    32 | 150 |  97 | 205 |
-
-| QUALITY | ENTRY | AVG | MIN | MAX |
-|--------:|------:|----:|----:|----:|
-|      -2 |     1 | 200 | 148 | 251 |
-|      -2 |     2 |  |  |  |
-|      -2 |     4 |  |  |  |
-|      -2 |     8 |  |  |  |
-|      -2 |    16 |  |  |  |
-|      -2 |    32 |  |  |  |
 
 More detailed statistics can be found the [reference results](results_reference.txt)
 An example of how to read the data:
 
-    RESULT: set_opus_comparison/32k_32bit_2c_ZDA-P3-Q0-E1/./04-liberate.wav 1 3 0.0 1.0 222221.5 6.944 160229 1112698/951820/71962/88910/6 -29.9 -20.6
+    RESULT: set_opus_comparison/32k_32bit_2c_ZDA-P3-Q0-E1/./04-liberate.wav 1 3 0.0 1.0 221479.4 6.921 160229 1108982/818060/130208/72028/88680 -29.8 -20.7
 
-Of the file 04-liberate.wav the channel 1 was compressed with predictor 3, quality 0.0, and entry 1.0 with an average of 222221.5 bit/s, i.e. 6.944 bit per sample.
-The encoder compressed 160229 samples to 1112698 bits, of which 951820 were used to encode significant values, 115184 to encode exponent values, 52336 to encode entry points, and 62447 to encode codebook updates.
-The signal-to-(quantization)noise ratio is -29.7 dB, the largest deviation in a single sample value was -20.8 dB full-scale.
+Of the file 04-liberate.wav the channel 1 was compressed with predictor 3, quality 0.0, and entry 1.0 with an average of 221479.4 bit/s, i.e. 6.921 bit per sample.
+The encoder compressed 160229 samples to 1108982 bits, of which 818060 were used to encode significant values, 130208 to encode entry points, 72028 to encode exponent updates, and 88680 to encode codebook updates.
+The signal-to-(quantization)noise ratio is -29.8 dB, the largest deviation in a single sample value was -20.7 dB full-scale.
 
 If you run the benchmark script, you can find the decoded samples in the corresponding `set_opus_comparison/32k_32bit_2c_ZDA-*` folders and judge the quality for yourself.
 If you think 32 kHz sample rate are not sufficent, you can modify the code snippet to use the `set_opus_comparison/44k_32bit_2c/` folder and re-run the benchmark.
