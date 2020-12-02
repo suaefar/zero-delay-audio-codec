@@ -29,7 +29,7 @@ Arbitrary sample rates are supported.
 A very good compromise between bit rate and quality seems to be at 32 kHz.
 
 The stream starts with an enty-point.
-This means, the sample value is encoded with 20 bit precision and prefixed with the controlcode `11000` to signal the entry point, and all variables are reset to default values.
+This means, the sample value is encoded with 20 bit precision and prefixed with the controlcode `111000` to signal the entry point, and all variables are reset to default values.
 Entry points are inserted every ENTRY milliseconds.
 In the [coloured bitmap](images/bitmap.png), entry-points are indicated with red color.
 The further encoding is then independent from the data before the last entry-point.
@@ -42,16 +42,17 @@ If the prediction is close to the actual value, the (absolute value of the) resi
 
 To encode (absolute-value-wise) small residuals with less bits, a set of codebooks is used which assume different root-mean-square (RMS) values of the residual, namely 2^-(0:13).
 The codebooks are generated assuming a (floored, to limit code lengths) normal distribution with the corresponding RMS-values and are known to the encoder and decoder.
-The prefix `110` has an identical meaning in all codebooks; it indicates that a controlcode encoded with two bits will follow.
+The prefix `1110` has an identical meaning in all codebooks; it indicates that a controlcode encoded with two bits will follow.
+Its length is optimal for a wide range of setting.
 The energy of the residual signal is tracked in the encoder and the used codebook is updated when needed.
-The codebook (possible values 0:13) is encoded with 4 bit, and a change is signalled with the code `11010`.
+The codebook (possible values 0:13) is encoded with 4 bit, and a change is signalled with the code `111010`.
 In the [coloured bitmap](images/bitmap.png), codebook updates are indicated with purple color.
 The logic includes a hysteresis to avoid osscillation.
 Frequent updates can save bits on the residual values, but add additional bits for signalling the changes.
 
 All transmitted values are represented as a significant/exponent pair, where `value = significant * 2^(exponent)`.
 Only the significant (of the residue) is encoded as described in the last paragraph.
-The exponent (possible values 0:1:31) is encoded with 5 bit and only updated when required, which is signalled with the code `11001`.
+The exponent (possible values 0:1:31) is encoded with 5 bit and only updated when required, which is signalled with the code `111001`.
 In the [coloured bitmap](images/bitmap.png), exponent updates are indicated with blue color.
 As the exponent determines the quantization noise, it is mainly steered by the masking model.
 The masking model determines the acceptable amplitude of quantization noise and proposes an optimal value.
@@ -60,7 +61,7 @@ The logic includes a hysteresis to avoid osscillation and too frequent updates.
 Frequent updates can save bits on the residual values, but add additional bits for signalling the changes.
 
 Hence, good predictions (which happen for harmonic signals) as well as large exponent values (which happen for non-harmonic signals) result in low significant values, which are compressed with the RMS-adaptive coding scheme.
-The compressed residual significant values are not prefixed, all codes but `110` encode resudual significant value.
+The compressed residual significant values are not prefixed, all codes but `1110` encode resudual significant value.
 That approach results in a minimum bit rate of 1 bit per sample (32 kbit/s at 32 kHz sample rate) which is approached in silence.
 In the [coloured bitmap](images/bitmap.png), significant values are indicated with yellow/orange color.
 
@@ -159,29 +160,29 @@ Will update soon.
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
 |--------:|------:|----:|----:|----:|
-|       0 |     1 | 235 | 172 | 306 |
-|       0 |     2 | 208 | 149 | 274 |
-|       0 |     4 | 191 | 136 | 253 |
-|       0 |     8 | 182 | 130 | 239 |
-|       0 |    16 | 178 | 126 | 233 |
-|       0 |    32 | 176 | 125 | 230 |
+|       0 |     1 | 219 | 155 | 291 |
+|       0 |     2 | 187 | 127 | 253 |
+|       0 |     4 | 168 | 112 | 228 |
+|       0 |     8 | 158 | 103 | 214 |
+|       0 |    16 | 153 | 110 | 208 |
+|       0 |    32 | 150 |  97 | 205 |
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
 |--------:|------:|----:|----:|----:|
-|      -2 |     1 | 217 | 165 | 268 |
-|      -2 |     2 | 189 | 142 | 235 |
-|      -2 |     4 | 172 | 129 | 217 |
-|      -2 |     8 | 163 | 122 | 207 |
-|      -2 |    16 | 159 | 119 | 202 |
-|      -2 |    32 | 156 | 116 | 201 |
+|      -2 |     1 | 200 | 148 | 251 |
+|      -2 |     2 |  |  |  |
+|      -2 |     4 |  |  |  |
+|      -2 |     8 |  |  |  |
+|      -2 |    16 |  |  |  |
+|      -2 |    32 |  |  |  |
 
 More detailed statistics can be found the [reference results](results_reference.txt)
 An example of how to read the data:
 
-    RESULT: set_opus_comparison/32k_32bit_2c_ZDA-P3-Q0-E1/./04-liberate.wav 1 3 0.0 1.0 236876.2 7.402 160229 1186076/956106/115184/52336/62447 -29.7 -20.8
+    RESULT: set_opus_comparison/32k_32bit_2c_ZDA-P3-Q0-E1/./04-liberate.wav 1 3 0.0 1.0 222221.5 6.944 160229 1112698/951820/71962/88910/6 -29.9 -20.6
 
-Of the file 04-liberate.wav the channel 1 was compressed with predictor 3, quality 0.0, and entry 1.0 with an average of 236876.2 bit/s, i.e. 7.402 bit per sample.
-The encoder compressed 160229 samples to 1186076 bits, of which 956106 were used to encode significant values, 115184 to encode exponent values, 52336 to encode entry points, and 62447 to encode codebook updates.
+Of the file 04-liberate.wav the channel 1 was compressed with predictor 3, quality 0.0, and entry 1.0 with an average of 222221.5 bit/s, i.e. 6.944 bit per sample.
+The encoder compressed 160229 samples to 1112698 bits, of which 951820 were used to encode significant values, 115184 to encode exponent values, 52336 to encode entry points, and 62447 to encode codebook updates.
 The signal-to-(quantization)noise ratio is -29.7 dB, the largest deviation in a single sample value was -20.8 dB full-scale.
 
 If you run the benchmark script, you can find the decoded samples in the corresponding `set_opus_comparison/32k_32bit_2c_ZDA-*` folders and judge the quality for yourself.
