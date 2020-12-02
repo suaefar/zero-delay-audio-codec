@@ -17,10 +17,10 @@ function [bits_per_second, bits_per_sample, num_bits, num_samples, SNR, DEV] = c
 
     num_samples = numel(signal(:,i));
     num_bits = numel(message);
-    num_significant_bits = sum(bits(controlcodes==0));
-    num_entry_bits = sum(bits(controlcodes==1));
-    num_exponent_bits = sum(bits(controlcodes==2));
-    num_codebook_bits = sum(bits(controlcodes==3));
+    num_significant_bits = sum(bits(controlcodes==-1));
+    num_entry_bits = sum(bits(controlcodes==0));
+    num_exponent_bits = sum(bits(controlcodes==1));
+    num_codebook_bits = sum(bits(controlcodes==2));
     bits_per_sample = num_bits./num_samples;
     bits_per_second = bits_per_sample.*fs;
     
