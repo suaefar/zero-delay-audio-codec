@@ -162,6 +162,16 @@ The following average/minimum/maximum bit rates in kbit/s (per channel) across a
 |       0 |    16 | 153 | 100 | 207 |
 |       0 |    32 | 150 |  97 | 205 |
 
+| QUALITY | ENTRY | AVG | MIN | MAX |
+|--------:|------:|----:|----:|----:|
+|      -2 |     1 | 200 | 148 | 252 |
+|      -2 |     2 | 168 | 120 | 214 |
+|      -2 |     4 | 149 | 104 | 193 |
+|      -2 |     8 | 138 |  96 | 183 |
+|      -2 |    16 | 133 |  92 | 178 |
+|      -2 |    32 | 131 |  89 | 175 |
+
+
 More detailed statistics can be found the [reference results](results_reference.txt)
 An example of how to read the data:
 
