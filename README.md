@@ -135,13 +135,13 @@ A small parameter space exploration for different values of QUALITY and ENTRY wi
 Read the corresponding [README.md](set_opus_comparison/README.md) on how to achieve the required audio samples.
 Once prepared, the following commands encode and decode the channels of these files with different parameters and generate basic statistics on their bit rates.
 
-    for QUALITY in 0 -2; do
+    for QUALITY in 0 -2 -4; do
       for ENTRY in 1 2 4 8 16 32; do
         ./run_benchmark.sh set_opus_comparison/32k_32bit_2c/ 3 $QUALITY $ENTRY
       done
     done | tee results.txt
     
-    for QUALITY in 0 -2; do
+    for QUALITY in 0 -2 -4; do
       for ENTRY in 1 2 4 8 16 32; do
         RATES="[$(cat results.txt  | grep "\-Q${QUALITY}-E${ENTRY}/" | cut -d' ' -f7 | tr -s "\n" | tr "\n" ",")]"; octave -q --eval "rates=${RATES};printf('QUALITY=%.1f ENTRY=%.1f %.0f %.0f %.0f kbit/s\n',${QUALITY},${ENTRY},mean(rates)./1000,min(rates)./1000,max(rates)./1000)"
       done
@@ -160,7 +160,7 @@ The following average/minimum/maximum bit rates in kbit/s (per channel) across a
 |       0 |     4 | 168 | 111 | 229 |
 |       0 |     8 | 158 | 103 | 214 |
 |       0 |    16 | 153 | 100 | 207 |
-|       0 |    32 | 150 |  97 | 205 |
+|       0 |    32 | 150 |  97 | 206 |
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
 |--------:|------:|----:|----:|----:|
@@ -170,6 +170,15 @@ The following average/minimum/maximum bit rates in kbit/s (per channel) across a
 |      -2 |     8 | 138 |  96 | 183 |
 |      -2 |    16 | 133 |  92 | 178 |
 |      -2 |    32 | 131 |  89 | 175 |
+
+| QUALITY | ENTRY | AVG | MIN | MAX |
+|--------:|------:|----:|----:|----:|
+|      -4 |     1 | 159 | 136 | 184 |
+|      -4 |     2 | 127 | 108 | 155 |
+|      -4 |     4 | 108 |  93 | 139 |
+|      -4 |     8 |  99 |  84 | 130 |
+|      -4 |    16 |  94 |  79 | 126 |
+|      -4 |    32 |  91 |  76 | 124 |
 
 
 More detailed statistics can be found the [reference results](results_reference.txt)
