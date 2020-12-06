@@ -8,8 +8,8 @@ function [bits_per_second, bits_per_sample, num_bits, num_samples, SNR, DEV] = c
   for i=1:num_channels
     printf('Encode channel\n');
     [message controlcodes bits] = zdaenc(signal(:,i), fs, predictor, quality, entry);
-    %printf('Write zda binary\n');
-    %writebinary([filename_out '.zda'], message);
+    printf('Write zda binary\n');
+    writebinary([filename_out '.zda'], message);
     %printf('Read zda binary\n');
     %message = readbinary([filename_out '.zda']);
     printf('Decode channel\n');
