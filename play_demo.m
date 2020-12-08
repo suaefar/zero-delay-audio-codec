@@ -18,7 +18,7 @@ period = [1/2000 1/2]; % 16Hz to 16000kHz
 signal = (10.^(linspace(level(1),level(2),fs/8)./20).*sin(2.*pi*cumsum(linspace(period(1),period(2),fs/8)))).';
 
 %% Add some noise (to see how the birate reduces)
-noiselevel = -90 % dB full-scale
+noiselevel = -90; % dB full-scale
 noise = 2.*(rand(size(signal))-0.5);
 noise = noise./rms(noise) .* 10.^(noiselevel./20);
 signal = signal + noise;
@@ -26,17 +26,18 @@ signal = signal + noise;
 % Only use blocks of 32 samples for later alignment in bitmap
 signal = signal(1:floor(numel(signal)/32).*32);
 
+signal = [signal 0.1.*randn(size(signal)) zeros(size(signal))];
+
 audiowrite('orginal.wav',signal,fs,'BitsPerSample',32);
 
 % Reference: Quantization with 16 bits
 audiowrite('reference.wav',signal,fs,'BitsPerSample',16);
 signal_ref = audioread('reference.wav');
 audiowrite('reference.wav',signal,fs,'BitsPerSample',32);
-bits_per_second_ref = 16.*fs
-
 
 % Zero-delay audio codec (ZDAC)
 %% ENCODER
+num_channels = size(signal,2);
 [message bits amplitude_tracker quantnoise_tracker exponent spectral_energy debug_message] = zdaenc(signal, fs, quality, entry);
 
 num_samples = size(signal,1);
@@ -51,7 +52,7 @@ bits_per_second = bits_per_sample.*fs;
 
 printf('%.1f %.3f %i %i/%i/%i/%i/%i\n',bits_per_second,bits_per_sample,num_samples,num_bits,num_significant_bits,num_entry_bits,num_exponent_bits,num_codebook_bits);
 
-writebinary('demo.zda', [dec2bin(fs,24)=='1' message]);
+writebinary('demo.zda', [dec2bin(fs,24)=='1' dec2bin(num_channels,8)=='1' message]);
 filesize = stat('demo.zda').size;
 printf('binary data written to demo.zda (%d bytes)\n',filesize);
 
@@ -136,12 +137,17 @@ clear message fs
 %% DECODER
 message = readbinary('demo.zda');
 fs = bin2dec('01'(1+message(1:24)));
-message = message(1+24:end);
+num_channels = bin2dec('01'(1+message(25:32)));
+message = message(33:end);
 printf('%i message bits read from demo.zda\n',numel(message));
 
-signal_reconst = zdadec(message, fs);
+signal_reconst = zdadec(message, fs, num_channels);
 
 audiowrite('reconstructed.wav',signal_reconst,fs,'BitsPerSample',32);
+
+signal = signal(:,1);
+signal_ref = signal_ref(:,1);
+signal_reconst = signal_reconst(:,1);
 
 quantnoise_ref = signal-signal_ref;
 quantnoise = signal-signal_reconst;

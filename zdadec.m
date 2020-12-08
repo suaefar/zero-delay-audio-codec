@@ -1,12 +1,9 @@
 # This file is part of the ZDAC reference implementation
 # Author (2020) Marc René Schädler (suaefar@googlemail.com)
 
-function signal = zdadec(message, fs)
+function signal = zdadec(message, fs, num_channels)
 
 %% SHARED PART
-% Use LPC predictor
-predict = @predictor_lpc;
-
 % Alphabet used for significant quantization
 significant_alphabet_bits = int32(12);
 significant_min_bits = 2;
@@ -35,48 +32,44 @@ controlcode_codebook = 2;
 controlcode_stop = 3;
 
 % Define variables which represent the state of the decoder
-sample = int32(0); % Current sample value (20bit)
-exponent = int32(0); % Current exponent value
-significant = int32(0); % Current significant value
-residue = int32(0); % Current residual value
-codebook = int32(0); % Select codebook
+sample = zeros(1,num_channels,'int32'); % Current sample value in encoder
+exponent = zeros(1,num_channels,'int32'); % Current exponent value
+codebook = zeros(1,num_channels,'int32'); % Select codebook
+significant = zeros(1,num_channels,'int32'); % Current significant value
+residue = zeros(1,num_channels,'int32'); % Current residual value
+sample_decoded = zeros(32,num_channels,'int32'); % Predicted sample value in decoder
+sample_predicted = zeros(1,num_channels,'int32'); % Predicted sample value in decoder
+
+% Maximum predictor context 
+max_predictor_context = round(1 .* fs./1000);
+
+%% DECODER PART
 
 % Load decoding trees and codebooks
 codebook_cache_file = 'codebook.bin';
 load(codebook_cache_file);
 
-%% DECODER PART
 message = logical(message); % Make sure we only have bits
 num_bits = numel(message);
 message_pointer = int32(0); % Pointer for last read bit
-signal_buffer = nan(ceil(num_bits/2),1,'single'); % Two bits per sample is minimum
-signal_pointer = int32(0); % Pointer for last written sample
+signal_buffer = nan(ceil(num_bits/2),num_channels,'single'); % Two bits per sample is minimum
+signal_pointer = 0; % Pointer for last written sample
 
 % Initialize variables
-exponent_default = exponent; % Default codebook for entry points
-codebook_default = codebook; % Default codebook for entry points
-
-sample_value = 0;
-sample_decoded = int32(0);
-current_bit = false;
 controlcode_decode = int32(2.^(2-1:-1:0));
-sample_bits = zeros(1,sample_alphabet_bits,'logical');
 sample_decode = int32(2.^(sample_alphabet_bits-1:-1:0));
-exponent_bits = zeros(1,exponent_alphabet_bits,'logical');
 exponent_decode = int32(2.^(exponent_alphabet_bits-1:-1:0));
-significant_bits = zeros(1,significant_alphabet_bits,'logical');
 significant_decode = int32(2.^(significant_alphabet_bits-1:-1:0));
-codebook_bits = zeros(1,codebook_alphabet_bits,'logical');
 codebook_decode = int32(2.^(codebook_alphabet_bits-1:-1:0));
 
-% Load default codebook
-[symbols codes tree] = codebooks{1 + codebook_default - codebook_alphabet(1)}{:};
-tree_traverse = tree;
+% Load initial tree
+tree_traverse = codebooks{1}{3};
 
 % Reset predictor
-predict();
-sample_predicted = int32(0);
-predictor_initialized = false;
+sample_predicted = zeros(1,num_channels,'int32');
+
+% Start with channel 1
+channel = 1;
 
 % Debug variables
 
@@ -100,21 +93,23 @@ while message_pointer < num_bits
         switch controlcode
           case controlcode_entry
             % Reset predictor
-            predict();
-            sample_predicted = int32(0);
+            sample_predicted = zeros(1,num_channels,'int32');
             
             % Get corresponding bits
-            exponent_bits = int32(message(message_pointer+1:message_pointer+exponent_alphabet_bits));
-            message_pointer = message_pointer + exponent_alphabet_bits;
-            codebook_bits = int32(message(message_pointer+1:message_pointer+codebook_alphabet_bits));
-            message_pointer = message_pointer + codebook_alphabet_bits;
+            for j=1:num_channels
+              exponent_bits = int32(message(message_pointer+1:message_pointer+exponent_alphabet_bits));
+              message_pointer = message_pointer + exponent_alphabet_bits;
+              codebook_bits = int32(message(message_pointer+1:message_pointer+codebook_alphabet_bits));
+              message_pointer = message_pointer + codebook_alphabet_bits;
 
-            % Decode values
-            exponent = exponent_alphabet(1+sum(exponent_bits.*exponent_decode,'native'));
-            codebook = codebook_alphabet(1+sum(codebook_bits.*codebook_decode,'native'));
-
-            % Use the new codebook for further decoding
-            [symbols codes tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
+              % Decode values
+              exponent(j) = exponent_alphabet(1+sum(exponent_bits.*exponent_decode,'native'));
+              codebook(j) = codebook_alphabet(1+sum(codebook_bits.*codebook_decode,'native'));
+              
+              % Start with channel 1
+              channel = 1;
+              last_entry_sample = signal_pointer;
+            end
 
           case controlcode_exponent
             % Get corresponding bits
@@ -122,7 +117,7 @@ while message_pointer < num_bits
             message_pointer = message_pointer + exponent_alphabet_bits;
 
             % Decode values
-            exponent = exponent_alphabet(1+sum(exponent_bits.*exponent_decode,'native'));
+            exponent(channel) = exponent_alphabet(1+sum(exponent_bits.*exponent_decode,'native'));
 
           case controlcode_codebook
             % Get corresponding bits
@@ -130,10 +125,7 @@ while message_pointer < num_bits
             message_pointer = message_pointer + codebook_alphabet_bits;
             
             % Decode values
-            codebook = codebook_alphabet(1+sum(codebook_bits.*codebook_decode,'native'));
-
-            % Use the new codebook for further decoding
-            [symbols codes tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
+            codebook(channel) = codebook_alphabet(1+sum(codebook_bits.*codebook_decode,'native'));
 
           case controlcode_stop
             break;
@@ -142,30 +134,39 @@ while message_pointer < num_bits
             error('unknown control code')
         end
       otherwise
-        residue = leave;
-        
-        % Get the predicted significant value with the (possibly changed) current exponent
-        significant_predicted = sample_predicted ./ 2.^exponent;   
-        significant_predicted = limit(significant_predicted,significant_factor.*[-1 1]);
-   
-        % Determine significant    
-        significant = significant_predicted + residue;
-        
-        % Reconstruct diff signal from updated decoder data for next prediction
-        sample_decoded = significant .* 2.^exponent;
-        
-        % Reconstruct sampled signal
-        sample_value = double(sample_decoded)./double(sample_factor);
-        
-        % Write reconstructed sample value to signal buffer
-        signal_buffer(signal_pointer+1) = sample_value;
-        signal_pointer = signal_pointer + 1;   
-        
-        % Predict next sample_diff
-        sample_predicted = int32(predict(sample_decoded));
+        % Save value and read data for next channel
+        residue(channel) = leave;
+        channel += 1;
     end
-    tree_traverse = tree;
+
+    if channel > num_channels
+      % Get the predicted significant value with the (possibly changed) current exponent
+      significant_predicted = sample_predicted ./ 2.^exponent;
+      significant_predicted = limit(significant_predicted,significant_factor.*[-1 1]);
+   
+      % Determine significant    
+      significant = significant_predicted + residue;
+        
+      % Reconstruct signal from updated decoder data for next prediction
+      sample_decoded = [sample_decoded(2:end,:); significant .* 2.^exponent];
+      predictor_context = double(sample_decoded(max(end-(signal_pointer-last_entry_sample),1):end,:));    
+      for j=1:num_channels
+        sample_predicted(j) = int32(predictor(predictor_context(:,j)));
+      end
+      
+      % Reconstruct sampled signal
+      sample_value = double(sample_decoded(end,:))./double(sample_factor);
+        
+      % Write reconstructed sample value to signal buffer
+      signal_buffer(signal_pointer+1,:) = sample_value;
+      signal_pointer = signal_pointer + 1;   
+      
+      % Start again with channel 1
+      channel = 1;
+    end  
+    
+    tree_traverse = codebooks{1 + codebook(channel) - codebook_alphabet(1)}{3};
   end
 end
-signal = signal_buffer(1:signal_pointer);
+signal = signal_buffer(1:signal_pointer,:);
 end
