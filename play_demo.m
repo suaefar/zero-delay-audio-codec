@@ -10,7 +10,6 @@ graphics_toolkit qt;
 % Assume 32kHz input with arbitrary precision (double float)
 fs = 32000;
 quality = 0; % Steers width of the masking threshold filters (0 default, probably useful values -5..1)
-predictor = 3; % 0 none, 1 identity, 2 bilinear, 3 linear prediction
 entry = 8; % period of entry points in ms
 
 % Generate a stimulus: Vary frequency and level over time
@@ -38,48 +37,24 @@ bits_per_second_ref = 16.*fs
 
 % Zero-delay audio codec (ZDAC)
 %% ENCODER
-[message controlcodes bits amplitude_tracker quantnoise_tracker exponent spectral_energy debug_message] = zdaenc(signal, fs, predictor, quality, entry);
+[message bits amplitude_tracker quantnoise_tracker exponent spectral_energy debug_message] = zdaenc(signal, fs, quality, entry);
 
 num_samples = size(signal,1);
 num_bits = numel(message);
-num_significant_bits = sum(bits(controlcodes==-1));
-num_entry_bits = sum(bits(controlcodes==0));
-num_exponent_bits = sum(bits(controlcodes==1));
-num_codebook_bits = sum(bits(controlcodes==2));
+num_significant_bits = sum(bits(1,:));
+num_entry_bits = sum(bits(2,:));
+num_exponent_bits = sum(bits(3,:));
+num_codebook_bits = sum(bits(4,:));
+num_stop_bits = sum(bits(5,:));
 bits_per_sample = num_bits./num_samples;
 bits_per_second = bits_per_sample.*fs;
 
 printf('%.1f %.3f %i %i/%i/%i/%i/%i %.1f %.1f\n',bits_per_second,bits_per_sample,num_samples,num_bits,num_significant_bits,num_entry_bits,num_exponent_bits,num_codebook_bits);
 
-figure('Position',[0 0 1600 800]);
-subplot(2,2,1);
-plot(controlcodes);
-ylim([-1 4]);
-grid on;
-title('Controlcode: 0 significant, 1 entry, 2 exponent, 3 codebook, 4 stop');
-subplot(2,2,2);
-bar([0 1 2 3 4],log10(histc(controlcodes,[-1 0 1 2 3])));
-yticks(log10(2.^(0:1:15)));
-yticklabels(2.^(0:1:15));
-xticklabels({'significant','entry','exponent','codebook','stop'});
-grid on;
-title('Controlcode: Absolute frequency')
-subplot(2,2,3);
-plot(bits);
-ylim([-1 33]);
-grid on;
-title('Controlcode bits')
-subplot(2,2,4);
-bar(log10(histc(bits,[0:32])));
-yticks(log10(2.^(0:1:15)));
-yticklabels(2.^(0:1:15));
-grid on;
-title('Controlcode bits: Absolute frequency');
-drawnow;
-
+% Colorscheme
 linecolors = lines(7);
 zerodimfactor = 0.9;
-colors= [
+colors = [
   linecolors(3,:).*zerodimfactor;
   linecolors(3,:);
   (linecolors(3,:)+[0 0.15 0]).*zerodimfactor;
@@ -90,8 +65,54 @@ colors= [
   linecolors(1,:);
   linecolors(4,:).*zerodimfactor;
   linecolors(4,:);
-  [0.5 0.5 0.5]
+  linecolors(5,:).*zerodimfactor;
+  linecolors(5,:);
+  [0.5 0.5 0.5];
 ];
+
+figure('Position',[0 0 1600 800]);
+subplot(2,3,[1 2 3]);
+plot(bits(1,:),'color',colors(2,:));
+hold on;
+plot(bits(2,:),'color',colors(6,:));
+plot(bits(3,:),'color',colors(8,:));
+plot(bits(4,:),'color',colors(10,:));
+plot(bits(5,:),'color',colors(12,:));
+ylabel('Bit');
+xlabel('Sample');
+grid on;
+title('Contol codes');
+legend({'significant' 'entry' 'exponent' 'codebook' 'stop'});
+
+subplot(2,3,4);
+bar(log10(histc(sum(bits),[0:40],2)));
+yticks(log10(2.^(0:1:15)));
+yticklabels(2.^(0:1:15));
+ylabel('Absolute frequency');
+xlabel('Bit per sample');
+grid on;
+title('Absolute frequencies of bits per sample');
+
+subplot(2,3,5);
+bar([0 1 2 3 4],log10(sum(bits>0,2)));
+yticks(log10(2.^(0:1:15)));
+yticklabels(2.^(0:1:15));
+xticklabels({'significant','entry','exponent','codebook','stop'});
+ylabel('Absolute frequency');
+xlabel('Control code');
+grid on;
+title('Control codes: Absolute frequency')
+
+subplot(2,3,6);
+bar([0 1 2 3 4],log10(sum(bits,2)));
+yticks(log10(2.^(0:1:20)));
+yticklabels(2.^(0:1:20));
+xticklabels({'significant','entry','exponent','codebook','stop'});
+ylabel('Absolute frequency');
+xlabel('Control code');
+grid on;
+title('Control codes: Cumulative bits')
+drawnow;
 
 figure('Position',[0 0 1600 800]);
 debug_message_padded = [debug_message,11.*ones(1,numel(signal)*16-numel(debug_message))];
@@ -102,12 +123,11 @@ grid on
 xticks(0:50:size(bitmap,2));
 yticks(0:16:size(bitmap,1));
 ylabel('bit number');
-title('Coloured bitmap: yellow/orange - significant, red - entry, blue - exponent, purple - codebook'); 
+title('Coloured bitmap: yellow/orange - significant, red - entry, blue - exponent, purple - codebook, green - stop'); 
 drawnow;
 
-
 %% DECODER
-signal_reconst = zdadec(message, fs, predictor);
+signal_reconst = zdadec(message, fs);
 
 audiowrite('reconstructed.wav',signal_reconst,fs,'BitsPerSample',32);
 

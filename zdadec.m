@@ -1,15 +1,11 @@
 # This file is part of the ZDAC reference implementation
 # Author (2020) Marc René Schädler (suaefar@googlemail.com)
 
-function signal = zdadec(message, fs, predictor)
-
-if nargin() < 3
-  predictor = 3;
-end
+function signal = zdadec(message, fs)
 
 %% SHARED PART
-predictors = {@predictor_zero @predictor_simple @predictor_linear @predictor_lpc};
-predict = predictors{predictor+1};
+% Use LPC predictor
+predict = @predictor_lpc;
 
 % Alphabet used for significant quantization
 significant_alphabet_bits = int32(12);
@@ -31,7 +27,7 @@ codebook_alphabet = int32(0:13);
 codebook_alphabet_bits = int32(ceil(log2(numel(codebook_alphabet))));
 
 % Control codes
-controlcode_prefixbits = 3;
+controlcode_prefixbits = 4;
 controlcode = [true(1,controlcode_prefixbits-1) false];
 controlcode_entry = 0;
 controlcode_exponent = 1;
@@ -103,33 +99,23 @@ while message_pointer < num_bits
         
         switch controlcode
           case controlcode_entry
-            % Get corresponding bits
-            sample_bits = int32(message(message_pointer+1:message_pointer+sample_alphabet_bits));
-            message_pointer = message_pointer + sample_alphabet_bits;
-            
-            % Decode values
-            sample = sum(sample_bits.*sample_decode,'native') - sample_factor;
-        
-            % Set default exponent
-            exponent = exponent_default;
-        
-            % Set default codebook
-            codebook = codebook_default;
-            
-            % Use the new codebook for further decoding
-            [symbols codes tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
-            
             % Reset predictor
             predict();
             sample_predicted = int32(0);
             
-            % Reconstruct sampled signal
-            sample_value = double(sample)./double(sample_factor);
-            
-            % Write reconstructed sample value to signal buffer
-            signal_buffer(signal_pointer+1) = sample_value;
-            signal_pointer = signal_pointer + 1;   
-            
+            % Get corresponding bits
+            exponent_bits = int32(message(message_pointer+1:message_pointer+exponent_alphabet_bits));
+            message_pointer = message_pointer + exponent_alphabet_bits;
+            codebook_bits = int32(message(message_pointer+1:message_pointer+codebook_alphabet_bits));
+            message_pointer = message_pointer + codebook_alphabet_bits;
+
+            % Decode values
+            exponent = exponent_alphabet(1+sum(exponent_bits.*exponent_decode,'native'));
+            codebook = codebook_alphabet(1+sum(codebook_bits.*codebook_decode,'native'));
+
+            % Use the new codebook for further decoding
+            [symbols codes tree] = codebooks{1 + codebook - codebook_alphabet(1)}{:};
+
           case controlcode_exponent
             % Get corresponding bits
             exponent_bits = int32(message(message_pointer+1:message_pointer+exponent_alphabet_bits));
@@ -151,6 +137,7 @@ while message_pointer < num_bits
 
           case controlcode_stop
             break;
+            
           otherwise
             error('unknown control code')
         end
