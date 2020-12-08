@@ -11,7 +11,6 @@ SAMPLERATE="44100"
 
 ZDAC_ENTRY=2.5
 ZDAC_QUALITY=0.0
-ZDAC_PREDICTOR=3
 
 OPUS_FRAMESIZE=2.5
 OPUS_MAXDELAY=0
@@ -30,9 +29,9 @@ ZDAC_TARGET_FILE="${FILE%%.wav}_${SAMPLERATE}Hz_zdac.wav"
 octave -q --eval "
   filename_in = '${SOURCE_FILE}';
   filename_out = '${ZDAC_TARGET_FILE}';
-  [bits_per_second, bits_per_sample, num_bits, num_samples, SNR, DEV] = codec(filename_in, filename_out, ${ZDAC_PREDICTOR}, ${ZDAC_QUALITY}, ${ZDAC_ENTRY});
+  [bits_per_second, bits_per_sample, num_bits, num_samples, SNR, DEV] = codec(filename_in, filename_out, ${ZDAC_QUALITY}, ${ZDAC_ENTRY});
   "
-ZDAC_SIZE=$(stat --printf="%s" "${ZDAC_TARGET_FILE}.zda")
+ZDAC_SIZE=$(stat --printf="%s" "${ZDAC_TARGET_FILE}_c1.zda")
 
 # OPUS
 OPUS_TARGET_FILE="${FILE%%.wav}_${SAMPLERATE}Hz_opus.wav"

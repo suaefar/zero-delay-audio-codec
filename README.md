@@ -28,17 +28,19 @@ The input is assumed to be sampled with arbitrary precision.
 Arbitrary sample rates are supported.
 A very good compromise between bit rate and quality seems to be at 32 kHz.
 
-The stream starts with an enty-point.
-This means, the sample value is encoded with 20 bit precision and prefixed with the controlcode `111000` to signal the entry point, and all variables are reset to default values.
+The stream starts with an entry-point.
+This means, the (later explained) variables `exponent` and `codebook` are encoded and prefixed with the controlcode `111000` to signal the entry point.
+This signals the decoder to reset the (later explained) predictor and assume the last predicted value was `0`.
 Entry points are inserted every ENTRY milliseconds.
 In the [coloured bitmap](images/bitmap.png), entry-points are indicated with red color.
 The further encoding is then independent from the data before the last entry-point.
 This means that the decoder can (re-)start decoding after every entry-point.
 
-The value of the next sample is predicted with a deterministic predictor that runs in sync in the encoder and decoder.
-For the first sample after the entry-point, the predictor only knows one last sample value, for later samples the predictions can get better.
+The value of each sample is predicted with a deterministic predictor, where the initial prediction is `0`.
+The predictor runs in sync in the encoder and decoder, and can only use the sample values after the last entry-point to predict the next value.
 Only the residual, the error of the prediction is transmitted.
 If the prediction is close to the actual value, the (absolute value of the) residual is small and it might be possible to encode it with less bits.
+The improvements to the bit rate by the predictor are lossless.
 
 To encode (absolute-value-wise) small residuals with less bits, a set of codebooks is used which assume different root-mean-square (RMS) values of the residual, namely 2^-(0:13).
 The codebooks are generated assuming a (floored, to limit code lengths) normal distribution with the corresponding RMS-values and are known to the encoder and decoder.
@@ -64,10 +66,9 @@ The compressed residual significant values are not prefixed, all codes but `1110
 That approach results in a minimum bit rate of 1 bit per sample (32 kbit/s at 32 kHz sample rate) which is approached in silence.
 In the [coloured bitmap](images/bitmap.png), significant values are indicated with yellow/orange color.
 
-The [best-performing predictor](predictor_lpc.m) is currently based on linear predicive coding (LPC) with 4 coefficients inferred from the (max) last 32 samples.
+The [predictor](predictor_lpc.m) is based on linear predicive coding (LPC) with (max) 4 coefficients inferred from the (max) last 32 samples.
 Other values work as well.
 Higher values increase complexity and only help on predictable signals.
-You can observe the performance of the predictor by running the [demo script](play_demo.m) with different predictors (e.g., set `predictor = 0`).
 Here, a deep neural network based predictor might perform even better?
 
 The masking model, which runs only in the encoder, is based on a 39-band fourth-order Gammetone filterbank implemented as IIR filters.
@@ -85,31 +86,7 @@ Then, run `play_demo.m` (in Octave) to see if encoding and decoding works.
 This script encodes and decodes a signal and shows the state of some internal variables of the encoder.
 You may increase the level of the added noise to see how the masking model works.
 
-Run `./run_benchmark.sh <folder-with-wav-files> <PREDICTOR> <QUALITY> <ENTRY>` to encode and decode the audio files in the folder and get some encoding statistics where the currently considered default values are as follows: PREDICTOR = 3, QUALITY = 0, ENTRY = 8.
-
-To compare zdac to opus at compareable bit rates you can run `./run_opus_comparison.sh <WAVFILE> <OPUS_BITRATE> <ZDA_PREDICTOR> <ZDA_QUALITY> <ZDA_ENTRY>`.
-The script encodes and decodes the WAVFILE and produces a figure comparing the respective differences to the input signal in the time domain and in the log Mel-spectrogram domain.
-After the first run with OPUS_BITRATE=512, add the bitrates of the (possibly two) channels encoded with zdac and set OPUS_BITRATE to this value.
-The figures are saved in png-files for each channel separately.
-The comparison is not ideal, because zdac was developed with a target samplerate of 32 kHz and opus is not compatible with this setting, which requires resampling prior to the comparison.
-
-### PREDICTOR
-The predictor predicts the next sample values based on past sample values.
-It is deterministic and runs in the encoder and in the decoder.
-The variance in the signal that can be predicted from the past samples doesn't have to be transmitted.
-If the predictor works well, the residual signal has only low amplitude and can be encoded with fewer bits.
-The improvements to the bit rate by the predictor are lossless.
-
-Available predictors are:
-
-0) [Zero](predictor_zero.m) predicts always zero
-1) [Simple](predictor_simple.m) predicts the last value
-2) [Linear extrapolation](predictor_linear.m) Extrapolates linearly using the last 2 samples
-3) [Linear predictive coding](predictor_lpc.m) Uses LPC with (max) four coefficients on the (max) last 32 samples to predict the next sample
-
-Possible future predictors could be:
-
-4) Deep neural network predictor Not implemented but possibly better than LPC?
+Run `./run_benchmark.sh <folder-with-wav-files> <QUALITY> <ENTRY>` to encode and decode the audio files in the folder and get some encoding statistics where the currently considered default values are as follows: QUALITY = 0, ENTRY = 8.
 
 ### QUALITY
 The encoder estimates the current masking with a 39-band Gammatone filterbank.
@@ -125,7 +102,7 @@ However, values greater than 1 probably don't make much sense.
 ### ENTRY
 The encoder inserts from time to time the information that is required to start decoding the bit-stream.
 The default is every 8 ms, which corresponds to every 256 samples at 32 kHz sampling rate.
-This includes encoding the current sample value with 20 bit precision and resets the predictor, because values prior to the entry point might be unknown to the decoder.
+This resets the predictor, because values prior to the entry point might be unknown to the decoder.
 Adding entry points more often will increase the required bits to encode the stream.
 This variable does not add a delay to the encoded bit-stream, but low values, e.g. 1 ms, ensure that the decoder can recover quickly if data was lost during the transmission.
 
@@ -137,7 +114,7 @@ Once prepared, the following commands encode and decode the channels of these fi
 
     for QUALITY in 0 -2 -4; do
       for ENTRY in 1 2 4 8 16 32; do
-        ./run_benchmark.sh set_opus_comparison/32k_32bit_2c/ 3 $QUALITY $ENTRY
+        ./run_benchmark.sh set_opus_comparison/32k_32bit_2c/ $QUALITY $ENTRY
       done
     done | tee results.txt
     
@@ -184,9 +161,9 @@ The following average/minimum/maximum bit rates in kbit/s (per channel) across a
 More detailed statistics can be found the [reference results](results_reference.txt)
 An example of how to read the data:
 
-    RESULT: set_opus_comparison/32k_32bit_2c_ZDA-P3-Q0-E1/./04-liberate.wav 1 3 0.0 1.0 221479.4 6.921 160229 1108982/818060/130208/72028/88680 -29.8 -20.7
+    RESULT: set_opus_comparison/32k_32bit_2c_ZDA-Q0-E1/./04-liberate.wav 1 0.0 1.0 221479.4 6.921 160229 1108982/818060/130208/72028/88680 -29.8 -20.7
 
-Of the file 04-liberate.wav the channel 1 was compressed with predictor 3, quality 0.0, and entry 1.0 with an average of 221479.4 bit/s, i.e. 6.921 bit per sample.
+Of the file 04-liberate.wav the channel 1 was compressed with quality 0.0, and entry 1.0 with an average of 221479.4 bit/s, i.e. 6.921 bit per sample.
 The encoder compressed 160229 samples to 1108982 bits, of which 818060 were used to encode significant values, 130208 to encode entry points, 72028 to encode exponent updates, and 88680 to encode codebook updates.
 The signal-to-(quantization)noise ratio is -29.8 dB, the largest deviation in a single sample value was -20.7 dB full-scale.
 
@@ -231,4 +208,3 @@ Counting another 1 ms jitter buffer and 0.5 ms packet size it seems possibly to 
 The delay added by any codec would add twice to that number (minus 0.5 ms).
 
 Also, the saved bandwidth could be used for redundancy, i.e. sending each packet twice, to avoid drop-outs, which is another important factor for sound quality.
-

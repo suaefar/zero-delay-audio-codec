@@ -49,7 +49,11 @@ num_stop_bits = sum(bits(5,:));
 bits_per_sample = num_bits./num_samples;
 bits_per_second = bits_per_sample.*fs;
 
-printf('%.1f %.3f %i %i/%i/%i/%i/%i %.1f %.1f\n',bits_per_second,bits_per_sample,num_samples,num_bits,num_significant_bits,num_entry_bits,num_exponent_bits,num_codebook_bits);
+printf('%.1f %.3f %i %i/%i/%i/%i/%i\n',bits_per_second,bits_per_sample,num_samples,num_bits,num_significant_bits,num_entry_bits,num_exponent_bits,num_codebook_bits);
+
+writebinary('demo.zda', [dec2bin(fs,24)=='1' message]);
+filesize = stat('demo.zda').size;
+printf('binary data written to demo.zda (%d bytes)\n',filesize);
 
 % Colorscheme
 linecolors = lines(7);
@@ -126,7 +130,15 @@ ylabel('bit number');
 title('Coloured bitmap: yellow/orange - significant, red - entry, blue - exponent, purple - codebook, green - stop'); 
 drawnow;
 
+printf('clear message and fs\n');
+clear message fs
+
 %% DECODER
+message = readbinary('demo.zda');
+fs = bin2dec('01'(1+message(1:24)));
+message = message(1+24:end);
+printf('%i message bits read from demo.zda\n',numel(message));
+
 signal_reconst = zdadec(message, fs);
 
 audiowrite('reconstructed.wav',signal_reconst,fs,'BitsPerSample',32);
