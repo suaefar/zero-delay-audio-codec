@@ -11,6 +11,7 @@ graphics_toolkit qt;
 fs = 32000;
 quality = 0; % Steers width of the masking threshold filters (0 default, probably useful values -5..1)
 entry = 8; % period of entry points in ms
+rate = 200; % soft-limit rate
 
 % Generate a stimulus: Vary frequency and level over time
 level = [0 -20]; % dB
@@ -26,8 +27,6 @@ signal = signal + noise;
 % Only use blocks of 32 samples for later alignment in bitmap
 signal = signal(1:floor(numel(signal)/32).*32);
 
-signal = [signal 0.1.*randn(size(signal)) zeros(size(signal))];
-
 audiowrite('orginal.wav',signal,fs,'BitsPerSample',32);
 
 % Reference: Quantization with 16 bits
@@ -37,10 +36,10 @@ audiowrite('reference.wav',signal,fs,'BitsPerSample',32);
 
 % Zero-delay audio codec (ZDAC)
 %% ENCODER
-num_channels = size(signal,2);
-[message bits amplitude_tracker quantnoise_tracker exponent spectral_energy debug_message] = zdaenc(signal, fs, quality, entry);
-
 num_samples = size(signal,1);
+num_channels = size(signal,2);
+[message bits amplitude_tracker quantnoise_tracker exponent spectral_energy debug_message] = zdaenc(signal, fs, quality, entry, rate);
+
 num_bits = numel(message);
 num_significant_bits = sum(bits(1,:));
 num_entry_bits = sum(bits(2,:));

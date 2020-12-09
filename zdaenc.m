@@ -1,7 +1,7 @@
 # This file is part of the ZDAC reference implementation
 # Author (2020) Marc René Schädler (suaefar@googlemail.com)
 
-function [message debug_bits debug_amplitude_tracker debug_quantnoise_tracker debug_exponent debug_spectral_energy debug_message] = zdaenc(signal, fs, quality, entry)
+function [message debug_bits debug_amplitude_tracker debug_quantnoise_tracker debug_exponent debug_spectral_energy debug_message] = zdaenc(signal, fs, quality, entry, rate)
 
 if nargin() < 3
   quality = 0;
@@ -9,6 +9,10 @@ end
 
 if nargin() < 4
   entry = 8;
+end
+
+if nargin() < 5
+  rate = inf;
 end
 
 num_samples = size(signal,1);
@@ -58,6 +62,7 @@ max_predictor_context = round(1 .* fs./1000);
 
 % Enable decoder to start decoding every entry_period samples
 entry_period = round(entry .* (fs./1000)); % ms
+entry_period_target_bits = rate.*1000.*(entry_period./fs);
 
 % Time constants for signal amplitude tracking
 amplitude_decrease = 0.1 ./ (fs./1000); % halfing in 10 ms
@@ -118,10 +123,14 @@ amplitude_hold_counter = zeros(1,num_channels);
 residual_energy = 0.10.*ones(1,num_channels);
 residual_update = 0.05;
 spectral_update = 0.10;
+rate_estimate = zeros(1,num_channels);
+excess_bits_per_sample = 0;
+savings_contribution = 1./num_channels.*ones(1,num_channels);
 
 % Buffer for output
 message_buffer = false(1,round(32.*num_channels.*num_samples)); % Generous buffer for bits
 message_pointer = int32(0); % Pointer for last written bit
+message_pointer_reference = message_pointer;
 
 % Debug variables
 debug_channel = 1;
@@ -140,6 +149,19 @@ for i=1:num_samples
     update_entry = true;
     last_entry_sample = i;
     sample_predicted = zeros(1,num_channels,'int32');
+    
+    % Update rate control    
+    entry_period_bits = message_pointer - message_pointer_reference;
+    excess_bits = entry_period_bits - entry_period_target_bits;
+    excess_bits_per_sample = max(0, excess_bits_per_sample + 0.25.*double(excess_bits)./double(entry_period));
+    savings_contribution_target = max(1,rate_estimate-double(4.*entry_period));
+    savings_contribution_target = savings_contribution_target./sum(savings_contribution_target);
+    savings_contribution = savings_contribution + 0.125.*savings_contribution_target;
+    savings_contribution = savings_contribution./sum(savings_contribution);
+    
+    % Reset rate counters    
+    message_pointer_reference = message_pointer;
+    rate_estimate = zeros(1,num_channels);
   end
 
   % Get the information we want to transmit
@@ -172,16 +194,11 @@ for i=1:num_samples
   end
   debug_amplitude_tracker(i) = amplitude_tracker(debug_channel);
 
-  % Make sure that the significant is less than 1
-  min_exponent = ceil(amplitude_tracker - log2(double(significant_factor)));
-  % Make sure that the significant encodes significant_min_bits
-  max_exponent = floor(amplitude_tracker - significant_min_bits);
-    
   % Determine suitable exponent as minimum distance in bits between 
   % masked threshold and minimum quantization noise level
   masked_threshold = log2(sqrt(spectral_energy)) + log2(double(sample_factor));
   quantnoise_masked_distance = masked_threshold - quantnoise_model_levels;
-  
+
   % Track minimum of suitable exponent
   quantnoise_exponent = max(0,min(quantnoise_masked_distance));
   for j=1:num_channels
@@ -197,8 +214,16 @@ for i=1:num_samples
     end
   end
   debug_quantnoise_tracker(i) = quantnoise_tracker(debug_channel);
+
+  % Make sure that the significant is less than 1
+  min_exponent = ceil(amplitude_tracker - log2(double(significant_factor)));
+  % Make sure that the significant encodes significant_min_bits
+  max_exponent = floor(amplitude_tracker - significant_min_bits);
+    
+  % Increase lower exponent limit when target bitrate is exceeded
+  min_exponent = min(min_exponent+excess_bits_per_sample.*savings_contribution,max_exponent);
   
-  % Keep the exponent in that range
+  % Keep the proposed exponent in the allowed range
   exponent_ideal = max(min_exponent,min(quantnoise_tracker,max_exponent));
   exponent_proposed = int32(ceil(exponent_ideal));
   exponent_proposed = limit(exponent_proposed,exponent_alphabet([1 end]));
@@ -221,8 +246,8 @@ for i=1:num_samples
   % Get the predicted significant value with the (possibly changed) current exponent   
   significant_predicted = sample_predicted ./ 2.^exponent;
   significant_predicted = limit(significant_predicted,significant_factor.*[-1 1]);
- 
   % Determine residue and update residual energy
+  
   residue = significant - significant_predicted;
   residual_energy = residual_energy .* (1-residual_update) + (double(residue)./double(residue_factor)).^2 .* residual_update;
   
@@ -239,7 +264,7 @@ for i=1:num_samples
     end
   end
   debug_codebook(i) = codebook(debug_channel);
-
+  
   % Reconstruct signal and predict next sample
   sample_decoded(i,:) = significant .* 2.^exponent;
   predictor_context = double(sample_decoded(max(last_entry_sample,i-max_predictor_context+1):i,:));
@@ -287,6 +312,7 @@ for i=1:num_samples
     debug_message_buffer(message_pointer+1:message_pointer+numel(insert_bits)) = double(insert_bits)-2.*mod(i,2);
     message_pointer += numel(insert_bits);
     debug_bits(1,i) += numel(insert_bits);
+    rate_estimate(j) += numel(residue_bits);
   end
 end
 % Tell the decoder to stop
