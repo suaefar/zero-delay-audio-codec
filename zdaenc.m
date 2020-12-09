@@ -330,6 +330,5 @@ message_bits_per_sample = message_bits./num_samples;
 message_bits_per_second = message_bits_per_sample.*fs;
 
 % Some statistics 
-message_bits = numel(message)
 printf('\nMessage encoded in %i bits, thats %.3f kbits per second and %.3f bits per sample\n',message_bits,message_bits_per_second./1000,message_bits_per_sample);
 end

@@ -114,7 +114,7 @@ Once prepared, the following commands encode and decode the channels of these fi
 
     for QUALITY in 0 -2 -4; do
       for ENTRY in 1 2 4 8 16 32; do
-        ./run_benchmark.sh set_opus_comparison/32k_32bit_2c/ $QUALITY $ENTRY
+        ./run_benchmark.sh set_opus_comparison/32k_32bit_2c/ $QUALITY $ENTRY 1024
       done
     done | tee results.txt
     
