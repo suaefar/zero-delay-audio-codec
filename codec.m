@@ -1,11 +1,12 @@
 # This file is part of the ZDAC reference implementation
 # Author (2020) Marc René Schädler (suaefar@googlemail.com)
 
-function [bits_per_second, bits_per_sample, num_bits, num_samples, SNR, DEV] = codec(filename_in, filename_out, quality, entry)
+function [bits_per_second, bits_per_sample, num_bits, num_samples, SNR, DEV] = codec(filename_in, filename_out, quality, entry, rate)
+  printf('Encode with quality=%d entry=%d, rate=%d\n',quality,entry,rate);
   [signal, fs] = audioread(filename_in);
   signal_reconst = zeros(size(signal));
   num_channels = size(signal,2);
-  [message bits] = zdaenc(signal, fs, quality, entry);
+  [message bits] = zdaenc(signal, fs, quality, entry, rate);
   printf('Write zda binary\n');
   zda_filename = [filename_out '.zda'];
   writebinary(zda_filename, [dec2bin(fs,24)=='1' dec2bin(num_channels,8)=='1' message]);
@@ -19,7 +20,7 @@ function [bits_per_second, bits_per_sample, num_bits, num_samples, SNR, DEV] = c
   num_stop_bits = sum(bits(5,:));
   bits_per_sample = num_bits./num_samples;
   bits_per_second = bits_per_sample.*fs;
-  printf('RESULT: %s %d %i %.1f %.1f %.1f %.3f %i %i/%i/%i/%i/%i\n',strrep(filename_out,' ','_'),fs,num_channels,quality,entry,bits_per_second,bits_per_sample,num_samples,num_bits,num_significant_bits,num_entry_bits,num_exponent_bits,num_codebook_bits); 
+  printf('RESULT: %s %d %i %.1f %.1f %.1f %.1f %.3f %i %i/%i/%i/%i/%i\n',strrep(filename_out,' ','_'),fs,num_channels,quality,entry,rate,bits_per_second,bits_per_sample,num_samples,num_bits,num_significant_bits,num_entry_bits,num_exponent_bits,num_codebook_bits); 
   printf('Read zda binary\n');
   message = readbinary(zda_filename);
   fs = bin2dec('01'(1+message(1:24)));

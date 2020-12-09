@@ -41,7 +41,7 @@ sample_decoded = zeros(32,num_channels,'int32'); % Predicted sample value in dec
 sample_predicted = zeros(1,num_channels,'int32'); % Predicted sample value in decoder
 
 % Maximum predictor context 
-max_predictor_context = round(1 .* fs./1000);
+max_predictor_context = 32;
 
 %% DECODER PART
 

@@ -8,10 +8,10 @@ clc
 graphics_toolkit qt;
 
 % Assume 32kHz input with arbitrary precision (double float)
-fs = 32000;
+fs = 44100;
 quality = 0; % Steers width of the masking threshold filters (0 default, probably useful values -5..1)
-entry = 8; % period of entry points in ms
-rate = 200; % soft-limit rate
+entry = 2.5; % period of entry points in ms
+rate = 250; % soft-limit rate
 
 % Generate a stimulus: Vary frequency and level over time
 level = [0 -20]; % dB

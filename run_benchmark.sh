@@ -5,7 +5,8 @@
 FOLDER="$1"
 QUALITY="$2"
 ENTRY="$3"
-NPROC="$4"
+RATE="$4"
+NPROC="$5"
 
 [ -z "$NPROC" ] && NPROC=$(nproc)
 
@@ -19,12 +20,12 @@ for ((I=0;$I<${NPROC};I++)); do
     files = importdata('${FILELIST}');
     n = min(length(files),n);
     indir = '${FOLDER%%/}';
-    outdir = '${FOLDER%%/}_ZDA-Q${QUALITY}-E${ENTRY}';
+    outdir = '${FOLDER%%/}_ZDA-Q${QUALITY}-E${ENTRY}-R${RATE}';
     mkdir(outdir);
     for i=1+${I}:n:length(files)
       filename_in = [indir filesep files{i}]
       filename_out = [outdir filesep files{i}];
-      codec(filename_in, filename_out, ${QUALITY}, ${ENTRY})
+      codec(filename_in, filename_out, ${QUALITY}, ${ENTRY},${RATE})
     end" &
 done 2>/dev/null | grep RESULT
 wait
