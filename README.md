@@ -19,7 +19,7 @@ Currently in conception phase:
 - Tuning default parameters (*still* improvements)
 - Adding documentation (done for now, may add on demand)
 - Implementation in C (not started, planned this winter)
-- Check out WAVPACK-stream if you are looking for a production-ready solution now
+- Check out WAVPACK-stream or Opus if you are looking for a production-ready solution now
 
 
 ## Short description
@@ -86,7 +86,7 @@ Then, run `play_demo.m` (in Octave) to see if encoding and decoding works.
 This script encodes and decodes a signal and shows the state of some internal variables of the encoder.
 You may increase the level of the added noise to see how the masking model works.
 
-Run `./run_benchmark.sh <folder-with-wav-files> <QUALITY> <ENTRY>` to encode and decode the audio files in the folder and get some encoding statistics where the currently considered default values are as follows: QUALITY = 0, ENTRY = 8.
+Run `./run_benchmark.sh <folder-with-wav-files> <QUALITY> <ENTRY> <RATE>` to encode and decode the audio files in the folder and get some encoding statistics where the currently considered default values are as follows: QUALITY = 0.0, ENTRY = 8.0 , RATE = 1024.0.
 
 ### QUALITY
 The encoder estimates the current masking with a 39-band Gammatone filterbank.
@@ -106,6 +106,13 @@ This resets the predictor, because values prior to the entry point might be unkn
 Adding entry points more often will increase the required bits to encode the stream.
 This variable does not add a delay to the encoded bit-stream, but low values, e.g. 1 ms, ensure that the decoder can recover quickly if data was lost during the transmission.
 
+### RATE
+The rate parameter can be used to limit the variable bit rate (in a reasonable range).
+It is designed to remove the peaks, where, due to the zero-latency approach, the effect requires a few entry-points to fully kick-in.
+The current bit rate is calculated from the accumulated output of the encoder between two entry-points.
+That information is used to adaptively increase the exponent by the number of excess bits over the run of a few entry-points.
+The rate limit is shared between channels and reduces the quality in channels with high bit rates first, where a minimum of 4 bit per sample and channel is reserved.
+
 
 ## Performance (in terms of achievable bit rates)
 A small parameter space exploration for different values of QUALITY and ENTRY with a sample rate of 32 kHz.
@@ -120,60 +127,42 @@ Once prepared, the following commands encode and decode the channels of these fi
     
     for QUALITY in 0 -2 -4; do
       for ENTRY in 1 2 4 8 16 32; do
-        RATES="[$(cat results.txt  | grep "\-Q${QUALITY}-E${ENTRY}/" | cut -d' ' -f7 | tr -s "\n" | tr "\n" ",")]"; octave -q --eval "rates=${RATES};printf('QUALITY=%.1f ENTRY=%.1f %.0f %.0f %.0f kbit/s\n',${QUALITY},${ENTRY},mean(rates)./1000,min(rates)./1000,max(rates)./1000)"
+        RATES="[$(cat results.txt  | grep "\-Q${QUALITY}-E${ENTRY}-" | cut -d' ' -f8 | tr -s "\n" | tr "\n" ",")]"; octave -q --eval "rates=${RATES};printf('QUALITY=%.1f ENTRY=%.1f %.0f %.0f %.0f kbit/s\n',${QUALITY},${ENTRY},mean(rates)./1000,min(rates)./1000,max(rates)./1000)"
       done
     done
 
-Encoding each sample with 16 bit at 32 kHz sample rate, the required bit rate would be `(16*32000 =) 512 kbit/s`.
-The lower bit rate limit with the chosen approach is 1 bit per sample, and would result in `(1*32000 =) 32 kbit/s`.
+Encoding each stereo sample with 16 bit at 32 kHz sample rate, the required bit rate would be `(2*16*32000 =) 1024 kbit/s`.
+The lower bit rate limit with the chosen approach is 1 bit per sample, and would result for stereo signals in `(2*32000 =) 64 kbit/s`.
 This value is approached, but never reached, in silence for high values of ENTRY.
 
-The following average/minimum/maximum bit rates in kbit/s (per channel) across all files were achieved with a sample rate of 32 kHz:
+The following average/minimum/maximum bit rates in kbit/s (no-joint stereo) across all files were achieved with a sample rate of 32 kHz.
+The bit rates for single channel audio would be approximately half the presented rates.
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
 |--------:|------:|----:|----:|----:|
-|       0 |     1 | 219 | 155 | 291 |
-|       0 |     2 | 187 | 127 | 253 |
-|       0 |     4 | 168 | 111 | 229 |
-|       0 |     8 | 158 | 103 | 214 |
-|       0 |    16 | 153 | 100 | 207 |
-|       0 |    32 | 150 |  97 | 206 |
-
-| QUALITY | ENTRY | AVG | MIN | MAX |
-|--------:|------:|----:|----:|----:|
-|      -2 |     1 | 200 | 148 | 252 |
-|      -2 |     2 | 168 | 120 | 214 |
-|      -2 |     4 | 149 | 104 | 193 |
-|      -2 |     8 | 138 |  96 | 183 |
-|      -2 |    16 | 133 |  92 | 178 |
-|      -2 |    32 | 131 |  89 | 175 |
-
-| QUALITY | ENTRY | AVG | MIN | MAX |
-|--------:|------:|----:|----:|----:|
-|      -4 |     1 | 159 | 136 | 184 |
-|      -4 |     2 | 127 | 108 | 155 |
-|      -4 |     4 | 108 |  93 | 139 |
-|      -4 |     8 |  99 |  84 | 130 |
-|      -4 |    16 |  94 |  79 | 126 |
-|      -4 |    32 |  91 |  76 | 124 |
+|       0 |     1 | 376 | 376 | 497 |
+|       0 |     2 | 339 | 221 | 450 |
+|       0 |     4 | 316 | 205 | 423 |
+|       0 |     8 | 304 | 197 | 410 |
+|       0 |    16 | 299 | 192 | 403 |
+|       0 |    32 | 296 | 190 | 401 |
 
 
 More detailed statistics can be found the [reference results](results_reference.txt)
 An example of how to read the data:
 
-    RESULT: set_opus_comparison/32k_32bit_2c_ZDA-Q0-E1/./04-liberate.wav 1 0.0 1.0 221479.4 6.921 160229 1108982/818060/130208/72028/88680 -29.8 -20.7
+    RESULT: RESULT: set_opus_comparison/32k_32bit_2c_ZDA-Q0-E1-R1024/./04-liberate.wav 32000 2 0.0 1.0 1024.0 360344.1 11.261 160229 1804299/1516566/120192/33825/133710
 
-Of the file 04-liberate.wav the channel 1 was compressed with quality 0.0, and entry 1.0 with an average of 221479.4 bit/s, i.e. 6.921 bit per sample.
-The encoder compressed 160229 samples to 1108982 bits, of which 818060 were used to encode significant values, 130208 to encode entry points, 72028 to encode exponent updates, and 88680 to encode codebook updates.
-The signal-to-(quantization)noise ratio is -29.8 dB, the largest deviation in a single sample value was -20.7 dB full-scale.
+The file 04-liberate.wav, which was sampled at 32 kHz and had 2 channels, was compressed with quality 0.0 and entry 1.0 (rate limited to 1024 kbit/s which has no effect) to an average bit rate of 360344.1 bit/s, i.e. 11.261 bit per sample.
+The encoder compressed 160229 samples to 1804299 bits, of which 1516566 were used to encode significant values, 120192 to encode entry points, 33825 to encode exponent updates, and 133710 to encode codebook updates.
 
 If you run the benchmark script, you can find the decoded samples in the corresponding `set_opus_comparison/32k_32bit_2c_ZDA-*` folders and judge the quality for yourself.
 If you think 32 kHz sample rate are not sufficent, you can modify the code snippet to use the `set_opus_comparison/44k_32bit_2c/` folder and re-run the benchmark.
 
 
 ## Quick preliminary conclusion
-The approach could at least half the required bandwidth for ultra-low-latency audio applications with very-little-to-no compromise on audio quality.
-Short term (<1 ms) variability in the bit rate is probably considerable (up to approx 350 kbit/s), but less than the uncompressed bit rate.
+The approach could half the required bandwidth for ultra-low-latency audio applications with very-little-to-no compromise on audio quality.
+However, the short term (<1 ms) variability in the bit rate is probably considerable.
 
 
 ## Discussion on possible applications
