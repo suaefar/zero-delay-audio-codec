@@ -147,6 +147,23 @@ The bit rates for single channel audio would be approximately half the presented
 |       0 |    16 | 299 | 192 | 403 |
 |       0 |    32 | 296 | 190 | 401 |
 
+| QUALITY | ENTRY | AVG | MIN | MAX |
+|--------:|------:|----:|----:|----:|
+|      -2 |     1 | 337 | 237 | 435 |
+|      -2 |     2 | 299 | 207 | 389 |
+|      -2 |     4 | 277 | 191 | 365 |
+|      -2 |     8 | 265 | 182 | 352 |
+|      -2 |    16 | 259 | 178 | 346 |
+|      -2 |    32 | 257 | 175 | 342 |
+
+| QUALITY | ENTRY | AVG | MIN | MAX |
+|--------:|------:|----:|----:|----:|
+|      -4 |     1 | 252 | 214 | 303 |
+|      -4 |     2 | 217 | 186 | 271 |
+|      -4 |     4 | 197 | 170 | 252 |
+|      -4 |     8 | 186 | 158 | 243 |
+|      -4 |    16 | 180 | 152 | 237 |
+|      -4 |    32 | 177 | 149 | 234 |
 
 More detailed statistics can be found the [reference results](results_reference.txt)
 An example of how to read the data:
@@ -158,6 +175,25 @@ The encoder compressed 160229 samples to 1804299 bits, of which 1516566 were use
 
 If you run the benchmark script, you can find the decoded samples in the corresponding `set_opus_comparison/32k_32bit_2c_ZDA-*` folders and judge the quality for yourself.
 If you think 32 kHz sample rate are not sufficent, you can modify the code snippet to use the `set_opus_comparison/44k_32bit_2c/` folder and re-run the benchmark.
+
+Lets see if the rate limiter works as expected, with the following experiment:
+
+    for ENTRY in 1 2 4 8 16 32; do
+      ./run_benchmark.sh set_opus_comparison/32k_32bit_2c/ 0 $ENTRY 1024
+    done | tee results.txt
+
+| QUALITY | ENTRY | AVG | MIN | MAX |
+|--------:|------:|----:|----:|----:|
+|       0 |     1 | 350 | 249 | 400 |
+|       0 |     2 | 326 | 221 | 400 |
+|       0 |     4 | 309 | 204 | 398 |
+|       0 |     8 | 300 | 197 | 394 |
+|       0 |    16 | 296 | 193 | 392 |
+|       0 |    32 | 293 | 190 | 389 |
+
+Yes, it does its Job.
+However, rate limiting reduces the quality of the signal in the affected passages.
+This means, that the quality is not independet anymore from the ENTRY parameter, because more frequent entry-points increase the bitrate and are more likely to trigger the rate limiter.
 
 
 ## Quick preliminary conclusion
