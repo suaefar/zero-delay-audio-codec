@@ -179,7 +179,7 @@ If you think 32 kHz sample rate are not sufficent, you can modify the code snipp
 Lets see if the rate limiter works as expected, with the following experiment:
 
     for ENTRY in 1 2 4 8 16 32; do
-      ./run_benchmark.sh set_opus_comparison/32k_32bit_2c/ 0 $ENTRY 1024
+      ./run_benchmark.sh set_opus_comparison/32k_32bit_2c/ 0 $ENTRY 400
     done | tee results.txt
 
 | QUALITY | ENTRY | AVG | MIN | MAX |
