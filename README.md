@@ -16,9 +16,9 @@ The scope is somewhere between opus and raw PCM, so are the expected bit rates.
 ## Status
 Currently in conception phase:
 - Working implementation in GNU/Octave (done)
-- Tuning default parameters (*still* improvements)
+- Tuning default parameters (done)
 - Adding documentation (done for now, may add on demand)
-- Implementation in C (not started, planned this winter)
+- Implementation in C (not started)
 - Check out WAVPACK-stream or Opus if you are looking for a production-ready solution now
 
 
